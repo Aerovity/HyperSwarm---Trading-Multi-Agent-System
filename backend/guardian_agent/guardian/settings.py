@@ -104,6 +104,12 @@ RISK_LIMITS = {
     'MIN_SIGNAL_CONFIDENCE': float(os.getenv('MIN_SIGNAL_CONFIDENCE', 0.7)),
 }
 
+# RL Policy Configuration
+USE_RL_POLICY = os.getenv('USE_RL_POLICY', 'false').lower() == 'true'
+RL_MODEL_PATH = os.getenv('RL_MODEL_PATH', str(BASE_DIR / 'data' / 'models' / 'guardian_ppo_latest'))
+RL_DETERMINISTIC = os.getenv('RL_DETERMINISTIC', 'true').lower() == 'true'
+RL_FALLBACK_TO_RULES = os.getenv('RL_FALLBACK_TO_RULES', 'true').lower() == 'true'
+
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
