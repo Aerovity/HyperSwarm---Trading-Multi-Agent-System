@@ -2,6 +2,7 @@
 
 import { GlassCard } from "@/components/ui/glass-card"
 import { mockPositions } from "@/lib/mock-data"
+import { executorApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Activity, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
@@ -9,12 +10,51 @@ import { useState, useEffect } from "react"
 
 export function PositionMonitor() {
   const [isMounted, setIsMounted] = useState(false)
+  const [positions, setPositions] = useState(mockPositions)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
-  const totalPnL = mockPositions.reduce((sum, p) => sum + p.pnl, 0)
-  const totalPnLPercent = mockPositions.reduce((sum, p) => sum + p.pnlPercent, 0) / mockPositions.length
+
+  // Fetch positions from Executor agent
+  useEffect(() => {
+    const fetchPositions = async () => {
+      try {
+        const executorPositions = await executorApi.getPositions()
+
+        // If API returns positions, use them; otherwise fallback to mock
+        if (executorPositions && executorPositions.length > 0) {
+          // Transform Executor API positions to match frontend format
+          const transformedPositions = executorPositions.map((pos: any) => ({
+            id: pos.position_id || pos.id,
+            pair: pos.pair || 'BTC/ETH',
+            entrySpread: pos.entry_spread || 0,
+            currentSpread: pos.current_spread || pos.entry_spread || 0,
+            size: pos.size || pos.position_size || 0,
+            pnl: pos.pnl || 0,
+            pnlPercent: pos.pnl_percent || 0,
+            riskLevel: pos.risk_level || 'low',
+            entryTime: pos.entry_time ? new Date(pos.entry_time) : new Date(),
+          }))
+          setPositions(transformedPositions)
+        }
+      } catch (error) {
+        console.error('Failed to fetch positions from Executor:', error)
+        // Keep using mock data on error
+      }
+    }
+
+    fetchPositions()
+    // Poll every 5 seconds for updates
+    const interval = setInterval(fetchPositions, 5000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const totalPnL = positions.reduce((sum, p) => sum + p.pnl, 0)
+  const totalPnLPercent = positions.length > 0
+    ? positions.reduce((sum, p) => sum + p.pnlPercent, 0) / positions.length
+    : 0
 
   // Mock liquidation health (0-100, where 100 is fully safe)
   const liquidationHealth = 78
@@ -119,46 +159,54 @@ export function PositionMonitor() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {mockPositions.map((position) => (
-                <tr key={position.id} className="hover:bg-white/5 transition-colors">
-                  <td className="py-3">
-                    <span className="font-medium">{position.pair}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {isMounted
-                        ? position.entryTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-                        : "--:-- --"}
-                    </span>
-                  </td>
-                  <td className="py-3 text-right font-mono">{position.entrySpread.toFixed(4)}</td>
-                  <td className="py-3 text-right font-mono">{position.currentSpread.toFixed(4)}</td>
-                  <td className="py-3 text-right font-mono">${position.size.toLocaleString()}</td>
-                  <td className="py-3 text-right">
-                    <span className={cn("font-medium", position.pnl >= 0 ? "text-[#30D158]" : "text-[#FF453A]")}>
-                      {position.pnl >= 0 ? "+" : ""}${position.pnl.toFixed(2)}
-                    </span>
-                    <span
-                      className={cn(
-                        "block text-xs",
-                        position.pnlPercent >= 0 ? "text-[#30D158]/70" : "text-[#FF453A]/70",
-                      )}
-                    >
-                      {position.pnlPercent >= 0 ? "+" : ""}
-                      {position.pnlPercent.toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="py-3 text-right">
-                    <span
-                      className={cn(
-                        "px-2 py-1 rounded-lg text-xs font-medium capitalize",
-                        getRiskBg(position.riskLevel),
-                        getRiskColor(position.riskLevel),
-                      )}
-                    >
-                      {position.riskLevel}
-                    </span>
+              {positions.length > 0 ? (
+                positions.map((position) => (
+                  <tr key={position.id} className="hover:bg-white/5 transition-colors">
+                    <td className="py-3">
+                      <span className="font-medium">{position.pair}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {isMounted
+                          ? position.entryTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                          : "--:-- --"}
+                      </span>
+                    </td>
+                    <td className="py-3 text-right font-mono">{position.entrySpread.toFixed(4)}</td>
+                    <td className="py-3 text-right font-mono">{position.currentSpread.toFixed(4)}</td>
+                    <td className="py-3 text-right font-mono">${position.size.toLocaleString()}</td>
+                    <td className="py-3 text-right">
+                      <span className={cn("font-medium", position.pnl >= 0 ? "text-[#30D158]" : "text-[#FF453A]")}>
+                        {position.pnl >= 0 ? "+" : ""}${position.pnl.toFixed(2)}
+                      </span>
+                      <span
+                        className={cn(
+                          "block text-xs",
+                          position.pnlPercent >= 0 ? "text-[#30D158]/70" : "text-[#FF453A]/70",
+                        )}
+                      >
+                        {position.pnlPercent >= 0 ? "+" : ""}
+                        {position.pnlPercent.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <span
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-xs font-medium capitalize",
+                          getRiskBg(position.riskLevel),
+                          getRiskColor(position.riskLevel),
+                        )}
+                      >
+                        {position.riskLevel}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No active positions
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

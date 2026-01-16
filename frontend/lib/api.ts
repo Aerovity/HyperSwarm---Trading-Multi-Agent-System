@@ -5,6 +5,8 @@
 const API_BASE_URLS = {
   scout: process.env.NEXT_PUBLIC_SCOUT_API_URL || 'http://localhost:8001',
   onboarder: process.env.NEXT_PUBLIC_ONBOARDER_API_URL || 'http://localhost:8002',
+  guardian: process.env.NEXT_PUBLIC_GUARDIAN_API_URL || 'http://localhost:8003',
+  executor: process.env.NEXT_PUBLIC_EXECUTOR_API_URL || 'http://localhost:8004',
 }
 
 class APIError extends Error {
@@ -15,7 +17,7 @@ class APIError extends Error {
 }
 
 async function apiClient<T>(
-  service: 'scout' | 'onboarder',
+  service: 'scout' | 'onboarder' | 'guardian' | 'executor',
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -117,12 +119,95 @@ export const onboarderApi = {
     apiClient<any>('onboarder', '/api/health'),
 }
 
+// Guardian Agent API
+export const guardianApi = {
+  getPortfolioState: (address: string) =>
+    apiClient<any>('guardian', `/api/portfolio/state?address=${address}`),
+
+  getPositions: (address: string) =>
+    apiClient<any>('guardian', `/api/positions?address=${address}`),
+
+  getRiskMetrics: (address: string) =>
+    apiClient<any>('guardian', `/api/risk/metrics?address=${address}`),
+
+  approveTradeRequest: (data: {
+    trade_proposal: {
+      pair: string
+      zscore: number
+      size: number
+      entry_spread: number
+      confidence: number
+    }
+    portfolio_state: {
+      total_value: number
+      available_margin: number
+      margin_usage: number
+      leverage: number
+      num_positions: number
+    }
+    market_conditions?: {
+      btc_volatility?: number
+      trend?: string
+    }
+  }) =>
+    apiClient<any>('guardian', '/api/trade/approve', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getAlerts: (address?: string, limit: number = 50) =>
+    apiClient<any>('guardian', `/api/alerts?${address ? `address=${address}&` : ''}limit=${limit}`),
+
+  getLogs: (limit: number = 50) =>
+    apiClient<any[]>('guardian', `/api/agent/logs?limit=${limit}`),
+
+  healthCheck: () =>
+    apiClient<any>('guardian', '/api/health'),
+}
+
+// Executor Agent API
+export const executorApi = {
+  getPositions: () =>
+    apiClient<any[]>('executor', '/api/positions'),
+
+  getPosition: (positionId: string) =>
+    apiClient<any>('executor', `/api/positions/${positionId}`),
+
+  closePosition: (positionId: string) =>
+    apiClient<any>('executor', `/api/positions/${positionId}/close`, {
+      method: 'POST',
+    }),
+
+  executeTrade: (data: {
+    signal_id: string
+    position_size: number
+    pair?: string
+  }) =>
+    apiClient<any>('executor', '/api/trades/execute', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  emergencyStop: () =>
+    apiClient<any>('executor', '/api/emergency_stop', {
+      method: 'POST',
+    }),
+
+  getLogs: (limit: number = 50) =>
+    apiClient<any[]>('executor', `/api/agent/logs?limit=${limit}`),
+
+  healthCheck: () =>
+    apiClient<any>('executor', '/api/health'),
+}
+
 // Combined agent logs from all services
 export const getAllAgentLogs = async (limit: number = 50): Promise<any[]> => {
   try {
-    const [scoutLogs, onboarderLogs] = await Promise.allSettled([
+    const [scoutLogs, onboarderLogs, guardianLogs, executorLogs] = await Promise.allSettled([
       scoutApi.getLogs(limit),
       onboarderApi.getLogs(limit),
+      guardianApi.getLogs(limit),
+      executorApi.getLogs(limit),
     ])
 
     const logs: any[] = []
@@ -133,6 +218,14 @@ export const getAllAgentLogs = async (limit: number = 50): Promise<any[]> => {
 
     if (onboarderLogs.status === 'fulfilled') {
       logs.push(...onboarderLogs.value)
+    }
+
+    if (guardianLogs.status === 'fulfilled') {
+      logs.push(...guardianLogs.value)
+    }
+
+    if (executorLogs.status === 'fulfilled') {
+      logs.push(...executorLogs.value)
     }
 
     // Sort by timestamp (newest first)

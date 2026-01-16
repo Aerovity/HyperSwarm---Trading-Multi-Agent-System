@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { tradingPairs } from "@/lib/mock-data"
+import { guardianApi, executorApi } from "@/lib/api"
 import { Zap, Shield, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -14,22 +15,84 @@ export function TradeExecution() {
   const [positionSize, setPositionSize] = useState([50000])
   const [guardianApproved, setGuardianApproved] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
   const [riskScore, setRiskScore] = useState<number | null>(null)
+  const [approvalId, setApprovalId] = useState<string | null>(null)
+  const [approvalReason, setApprovalReason] = useState<string | null>(null)
 
   const handleCheckRisk = async () => {
     if (!selectedPair) return
     setIsChecking(true)
-    // Simulate Guardian agent checking risk
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    const score = Math.floor(Math.random() * 40) + 60 // Score between 60-100
-    setRiskScore(score)
-    setGuardianApproved(score >= 70)
-    setIsChecking(false)
+    setApprovalReason(null)
+
+    try {
+      // Get mock portfolio state (in production, fetch from wallet/agent)
+      const portfolioState = {
+        total_value: 100000,
+        available_margin: 75000,
+        margin_usage: 25,
+        leverage: 1.5,
+        num_positions: 1,
+      }
+
+      // Request Guardian approval via real API
+      const approval = await guardianApi.approveTradeRequest({
+        trade_proposal: {
+          pair: selectedPair,
+          zscore: 2.5, // Would come from Scout signal in production
+          size: positionSize[0],
+          entry_spread: 0.015,
+          confidence: 0.85,
+        },
+        portfolio_state: portfolioState,
+        market_conditions: {
+          btc_volatility: 3.5,
+          trend: "neutral",
+        },
+      })
+
+      // Guardian returns risk_score in 0-100 scale (100 = safest)
+      setRiskScore(approval.risk_score || 0)
+      setGuardianApproved(approval.decision === "approve")
+      setApprovalId(approval.approval_id || null)
+      setApprovalReason(approval.reasoning || approval.reason || null)
+    } catch (err) {
+      console.error('Guardian approval failed:', err)
+      // Fallback to mock on error (for demo purposes)
+      const score = Math.floor(Math.random() * 40) + 60
+      setRiskScore(score)
+      setGuardianApproved(score >= 70)
+      setApprovalReason("Guardian API unavailable - using mock assessment")
+    } finally {
+      setIsChecking(false)
+    }
   }
 
-  const handleExecute = () => {
-    // Mock execution
-    alert(`Executing pair trade: ${selectedPair} with size $${positionSize[0].toLocaleString()}`)
+  const handleExecute = async () => {
+    if (!selectedPair) return
+    setIsExecuting(true)
+
+    try {
+      // Execute trade via Executor agent
+      const result = await executorApi.executeTrade({
+        signal_id: `signal_${Date.now()}`, // Would come from Scout in production
+        position_size: positionSize[0],
+        pair: selectedPair,  // Pass the selected trading pair
+      })
+
+      alert(`Trade executed successfully!\nPair: ${selectedPair}\nPosition ID: ${result.position_id || 'N/A'}\nStatus: ${result.status || 'submitted'}`)
+
+      // Reset form after successful execution
+      setRiskScore(null)
+      setGuardianApproved(false)
+      setApprovalId(null)
+      setApprovalReason(null)
+    } catch (err) {
+      console.error('Trade execution failed:', err)
+      alert(`Trade execution failed. Please try again.\n${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setIsExecuting(false)
+    }
   }
 
   return (
@@ -117,6 +180,9 @@ export function TradeExecution() {
                   </>
                 )}
               </div>
+              {approvalReason && (
+                <p className="text-xs text-muted-foreground mt-1">{approvalReason}</p>
+              )}
             </div>
           ) : (
             <Button
@@ -140,7 +206,7 @@ export function TradeExecution() {
 
         <Button
           onClick={handleExecute}
-          disabled={!guardianApproved || !selectedPair}
+          disabled={!guardianApproved || !selectedPair || isExecuting}
           className={cn(
             "w-full haptic-press font-medium h-12",
             guardianApproved
@@ -148,8 +214,17 @@ export function TradeExecution() {
               : "bg-secondary text-muted-foreground cursor-not-allowed",
           )}
         >
-          <Zap className="w-4 h-4 mr-2" />
-          Execute Pair Trade
+          {isExecuting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Executing Trade...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4 mr-2" />
+              Execute Pair Trade
+            </>
+          )}
         </Button>
 
         {!guardianApproved && selectedPair && (
