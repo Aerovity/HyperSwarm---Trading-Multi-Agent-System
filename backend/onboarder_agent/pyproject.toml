@@ -1,0 +1,28 @@
+[project]
+name = "onboarder-agent"
+version = "0.1.0"
+description = "Cross-chain bridge agent for HyperSwarm"
+requires-python = ">=3.10"
+dependencies = [
+    "Django==5.0.1",
+    "djangorestframework==3.14.0",
+    "django-cors-headers==4.3.1",
+    "redis==5.0.1",
+    "hiredis==2.3.2",
+    "requests==2.31.0",
+    "hyperliquid-python-sdk==0.4.0",
+    "python-dotenv==1.0.0",
+    "coverage==7.4.0",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["*/tests/*", "*/migrations/*", "manage.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

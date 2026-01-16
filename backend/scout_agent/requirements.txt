@@ -1,0 +1,21 @@
+# Django
+Django==5.0.1
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Redis
+redis==5.0.1
+hiredis==2.3.2
+
+# Hyperliquid
+hyperliquid-python-sdk==0.4.0
+
+# Data processing
+numpy==1.26.3
+pandas==2.1.4
+
+# Environment
+python-dotenv==1.0.0
+
+# Testing
+coverage==7.4.0
