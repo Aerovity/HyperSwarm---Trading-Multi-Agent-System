@@ -65,3 +65,17 @@ class TradeCalculatorTests(TestCase):
         # Short: 1.0 * (3000 - 2900) = 100
         # Total = 200
         self.assertEqual(pnl, 200)
+
+    def test_calculate_take_profit_spread(self):
+        """Test take-profit spread calculation"""
+        tp = calculate_take_profit_spread(0.02, 0.5)
+        self.assertGreater(tp, 0)
+        # For entry spread of 0.02 (2%) with target sigma 0.5
+        self.assertAlmostEqual(tp, 0.5)
+
+    def test_calculate_stop_loss_spread(self):
+        """Test stop-loss spread calculation"""
+        sl = calculate_stop_loss_spread(0.02, 3.0)
+        self.assertGreater(sl, 0)
+        # For entry spread of 0.02 (2%) with max sigma 3.0
+        self.assertAlmostEqual(sl, 3.0)

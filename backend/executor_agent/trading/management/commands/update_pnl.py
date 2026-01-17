@@ -1,6 +1,6 @@
 """
 Django management command to run the PnL updater daemon.
-Updates position PnL every 5 seconds using Scout's real-time market data.
+Updates position PnL every 3 seconds using Scout's real-time market data.
 """
 
 import time
@@ -18,8 +18,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--interval',
             type=int,
-            default=5,
-            help='Update interval in seconds (default: 5)'
+            default=3,  # Changed from 5 to 3 for faster demo updates
+            help='Update interval in seconds (default: 3)'
         )
 
     def handle(self, *args, **options):

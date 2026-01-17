@@ -28,6 +28,7 @@ export function PositionMonitor() {
           const transformedPositions = executorPositions.map((pos: any) => ({
             id: pos.position_id || pos.id,
             pair: pos.pair || 'BTC/ETH',
+            timeWindow: pos.time_window || '5min',  // NEW: time window
             entrySpread: pos.entry_spread || 0,
             currentSpread: pos.current_spread || pos.entry_spread || 0,
             size: pos.size || pos.position_size || 0,
@@ -35,6 +36,8 @@ export function PositionMonitor() {
             pnlPercent: pos.pnl_percent || 0,
             riskLevel: pos.risk_level || 'low',
             entryTime: pos.entry_time ? new Date(pos.entry_time) : new Date(),
+            status: pos.status || 'open',  // NEW: position status
+            windowExpiresAt: pos.window_expires_at ? new Date(pos.window_expires_at) : null,  // NEW: expiration time
           }))
           setPositions(transformedPositions)
         }
@@ -106,8 +109,7 @@ export function PositionMonitor() {
             <div
               className={cn("text-3xl font-bold tracking-tight", totalPnL >= 0 ? "text-[#30D158]" : "text-[#FF453A]")}
             >
-              {totalPnL >= 0 ? "+" : ""}
-              {totalPnL.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              ${Math.abs(totalPnL).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div
               className={cn(
@@ -116,8 +118,7 @@ export function PositionMonitor() {
               )}
             >
               {totalPnLPercent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {totalPnLPercent >= 0 ? "+" : ""}
-              {totalPnLPercent.toFixed(2)}%
+              {Math.abs(totalPnLPercent).toFixed(2)}%
             </div>
 
             {/* Liquidation Health */}
@@ -151,11 +152,13 @@ export function PositionMonitor() {
             <thead>
               <tr className="text-muted-foreground text-xs uppercase">
                 <th className="text-left pb-3 font-medium">Pair</th>
+                <th className="text-right pb-3 font-medium">Window</th>
                 <th className="text-right pb-3 font-medium">Entry Spread</th>
                 <th className="text-right pb-3 font-medium">Current Spread</th>
                 <th className="text-right pb-3 font-medium">Size</th>
-                <th className="text-right pb-3 font-medium">PnL</th>
+                <th className="text-right pb-3 font-medium">Current Value</th>
                 <th className="text-right pb-3 font-medium">Risk</th>
+                <th className="text-right pb-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -170,21 +173,26 @@ export function PositionMonitor() {
                           : "--:-- --"}
                       </span>
                     </td>
+                    <td className="py-3 text-right">
+                      <span className="text-xs text-muted-foreground">{position.timeWindow || '5min'}</span>
+                    </td>
                     <td className="py-3 text-right font-mono">{position.entrySpread.toFixed(4)}</td>
                     <td className="py-3 text-right font-mono">{position.currentSpread.toFixed(4)}</td>
                     <td className="py-3 text-right font-mono">${position.size.toLocaleString()}</td>
                     <td className="py-3 text-right">
                       <span className={cn("font-medium", position.pnl >= 0 ? "text-[#30D158]" : "text-[#FF453A]")}>
-                        {position.pnl >= 0 ? "+" : ""}${position.pnl.toFixed(2)}
+                        ${position.pnl >= 0
+                          ? (position.size + position.pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : Math.abs(position.pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
                       </span>
                       <span
                         className={cn(
                           "block text-xs",
-                          position.pnlPercent >= 0 ? "text-[#30D158]/70" : "text-[#FF453A]/70",
+                          position.pnl >= 0 ? "text-[#30D158]/70" : "text-[#FF453A]/70",
                         )}
                       >
-                        {position.pnlPercent >= 0 ? "+" : ""}
-                        {position.pnlPercent.toFixed(2)}%
+                        {((Math.abs(position.pnl) / position.size) * 100).toFixed(2)}%
                       </span>
                     </td>
                     <td className="py-3 text-right">
@@ -198,11 +206,21 @@ export function PositionMonitor() {
                         {position.riskLevel}
                       </span>
                     </td>
+                    <td className="py-3 text-right">
+                      <span
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-xs font-medium capitalize",
+                          position.status === 'settled' ? "bg-blue-500/20 text-blue-400" : "bg-green-500/20 text-green-400"
+                        )}
+                      >
+                        {position.status || 'open'}
+                      </span>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="py-8 text-center text-muted-foreground">
                     No active positions
                   </td>
                 </tr>

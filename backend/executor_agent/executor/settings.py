@@ -132,6 +132,30 @@ POSITION_WINDOW_SIZE = int(os.getenv('POSITION_WINDOW_SIZE', 500))
 TRADE_WINDOW_SIZE = int(os.getenv('TRADE_WINDOW_SIZE', 1000))
 LOG_WINDOW_SIZE = int(os.getenv('LOG_WINDOW_SIZE', 100))
 
+# Time window settings for spread calculations
+TIME_WINDOWS = {
+    '1min': {
+        'periods': 12,  # 12 periods * 5 seconds = 60 seconds
+        'display': '1 minute',
+        'duration_seconds': 60
+    },
+    '5min': {
+        'periods': 60,  # 60 periods * 5 seconds = 5 minutes
+        'display': '5 minutes',
+        'duration_seconds': 300
+    },
+    '15min': {
+        'periods': 180,  # 180 periods * 5 seconds = 15 minutes
+        'display': '15 minutes',
+        'duration_seconds': 900
+    }
+}
+
+# Demo settings for hackathon
+DEMO_SPREAD_MULTIPLIER = float(os.getenv('DEMO_SPREAD_MULTIPLIER', 7.0))
+SPREAD_MIN = float(os.getenv('SPREAD_MIN', 0.001))  # 0.1%
+SPREAD_MAX = float(os.getenv('SPREAD_MAX', 0.05))   # 5%
+
 # Other agent URLs
 SCOUT_API_URL = os.getenv('SCOUT_API_URL', 'http://localhost:8001')
 GUARDIAN_API_URL = os.getenv('GUARDIAN_API_URL', 'http://localhost:8003')

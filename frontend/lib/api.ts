@@ -182,6 +182,7 @@ export const executorApi = {
     signal_id: string
     position_size: number
     pair?: string
+    time_window?: string  // NEW: time window parameter
   }) =>
     apiClient<any>('executor', '/api/trades/execute', {
       method: 'POST',
@@ -198,6 +199,10 @@ export const executorApi = {
 
   healthCheck: () =>
     apiClient<any>('executor', '/api/health'),
+
+  // NEW: Get available time window options
+  getTimeWindows: () =>
+    apiClient<{ windows: Record<string, { periods: number; display: string }>; default: string }>('executor', '/api/time_windows'),
 }
 
 // Combined agent logs from all services

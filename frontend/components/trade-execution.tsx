@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -12,13 +12,35 @@ import { cn } from "@/lib/utils"
 
 export function TradeExecution() {
   const [selectedPair, setSelectedPair] = useState("")
-  const [positionSize, setPositionSize] = useState([50000])
+  const [positionSize, setPositionSize] = useState([15000])
+  const [timeWindow, setTimeWindow] = useState("5min")  // NEW
+  const [timeWindows, setTimeWindows] = useState<Record<string, { periods: number; display: string }>>({})  // NEW
   const [guardianApproved, setGuardianApproved] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
   const [riskScore, setRiskScore] = useState<number | null>(null)
   const [approvalId, setApprovalId] = useState<string | null>(null)
   const [approvalReason, setApprovalReason] = useState<string | null>(null)
+
+  // NEW: Fetch available time windows on mount
+  useEffect(() => {
+    const fetchTimeWindows = async () => {
+      try {
+        const response = await executorApi.getTimeWindows()
+        setTimeWindows(response.windows || {})
+        setTimeWindow(response.default || '5min')
+      } catch (error) {
+        console.error('Failed to fetch time windows:', error)
+        // Fallback to default time windows
+        setTimeWindows({
+          '1min': { periods: 12, display: '1 minute' },
+          '5min': { periods: 60, display: '5 minutes' },
+          '15min': { periods: 180, display: '15 minutes' }
+        })
+      }
+    }
+    fetchTimeWindows()
+  }, [])
 
   const handleCheckRisk = async () => {
     if (!selectedPair) return
@@ -78,9 +100,10 @@ export function TradeExecution() {
         signal_id: `signal_${Date.now()}`, // Would come from Scout in production
         position_size: positionSize[0],
         pair: selectedPair,  // Pass the selected trading pair
+        time_window: timeWindow,  // NEW: Pass the selected time window
       })
 
-      alert(`Trade executed successfully!\nPair: ${selectedPair}\nPosition ID: ${result.position_id || 'N/A'}\nStatus: ${result.status || 'submitted'}`)
+      alert(`Trade executed successfully!\nPair: ${selectedPair}\nTime Window: ${timeWindow}\nPosition ID: ${result.position_id || 'N/A'}\nStatus: ${result.status || 'submitted'}`)
 
       // Reset form after successful execution
       setRiskScore(null)
@@ -127,6 +150,23 @@ export function TradeExecution() {
           </Select>
         </div>
 
+        {/* Time Window Selection - NEW */}
+        <div>
+          <label className="text-sm text-muted-foreground mb-2 block">Time Window</label>
+          <Select value={timeWindow} onValueChange={setTimeWindow}>
+            <SelectTrigger className="w-full bg-secondary/50 border-white/10">
+              <SelectValue placeholder="Select time window" />
+            </SelectTrigger>
+            <SelectContent className="bg-secondary border-white/10">
+              {Object.entries(timeWindows).map(([key, value]) => (
+                <SelectItem key={key} value={key}>
+                  {value.display}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Position Size */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -136,14 +176,14 @@ export function TradeExecution() {
           <Slider
             value={positionSize}
             onValueChange={setPositionSize}
-            max={200000}
+            max={25000}
             min={10000}
-            step={5000}
+            step={1000}
             className="py-2"
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
             <span>$10K</span>
-            <span>$200K</span>
+            <span>$25K</span>
           </div>
         </div>
 

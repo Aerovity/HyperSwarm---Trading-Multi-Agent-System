@@ -12,4 +12,5 @@ urlpatterns = [
     path('positions/<str:position_id>/close', views.close_position, name='close_position'),
     path('trades/execute', views.execute_trade, name='execute_trade'),
     path('emergency_stop', views.emergency_stop, name='emergency_stop'),
+    path('time_windows', views.get_time_windows, name='time_windows'),
 ]

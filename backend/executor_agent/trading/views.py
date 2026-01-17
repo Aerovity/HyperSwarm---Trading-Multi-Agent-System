@@ -93,17 +93,31 @@ def execute_trade(request):
         signal_id = request.data.get('signal_id')
         position_size = request.data.get('position_size')
         pair = request.data.get('pair', 'BTC/ETH')  # Default pair
+        time_window = request.data.get('time_window', '5min')  # NEW: Get time window from request
 
         if not signal_id or not position_size:
             return Response({'error': 'Missing required fields'}, status=400)
 
-        # Create demo position with realistic entry spread
+        # Create position ID
         position_id = f"pos_{int(time.time() * 1000)}"
 
-        # Use realistic entry spread based on typical pair trading ranges
-        # Most crypto pair trades have spreads between 0.1% - 2%
-        import random
-        entry_spread = round(random.uniform(0.001, 0.02), 4)  # 0.1% - 2%
+        # Calculate REAL initial spread using Scout's data
+        from .pnl_updater import PnLUpdater
+        pnl_updater = PnLUpdater()
+        entry_spread = pnl_updater.get_initial_spread(pair, time_window)
+
+        # Fallback if can't get real spread
+        if entry_spread == 0.0:
+            import random
+            entry_spread = round(random.uniform(0.001, 0.02), 4)
+            logger.warning(f"Using fallback random spread {entry_spread} for {pair}")
+
+        # Calculate window expiration time
+        from datetime import timedelta
+        entry_time = datetime.now()
+        window_config = settings.TIME_WINDOWS.get(time_window, settings.TIME_WINDOWS['5min'])
+        duration_seconds = window_config.get('duration_seconds', 300)
+        window_expires_at = entry_time + timedelta(seconds=duration_seconds)
 
         position_data = {
             'position_id': position_id,
@@ -111,9 +125,11 @@ def execute_trade(request):
             'pair': pair,
             'size': position_size,
             'position_size': position_size,
+            'time_window': time_window,  # NEW: Lock the time window to the position
             'entry_spread': entry_spread,
             'current_spread': entry_spread,
-            'entry_time': datetime.now().isoformat(),
+            'entry_time': entry_time.isoformat(),
+            'window_expires_at': window_expires_at.isoformat(),  # NEW: Fixed-duration window expiration
             'status': 'open',
             'pnl': 0.0,
             'pnl_percent': 0.0,
@@ -132,14 +148,16 @@ def execute_trade(request):
         # Keep list manageable (max 100 positions)
         redis_client.ltrim("positions:all", 0, 99)
 
-        log_agent_activity("executor", "success", f"Position opened: {position_id} for {pair}")
+        log_agent_activity("executor", "success", f"Position opened: {position_id} for {pair} ({time_window})")
 
         return Response({
             'status': 'submitted',
             'position_id': position_id,
             'signal_id': signal_id,
             'position_size': position_size,
-            'pair': pair
+            'pair': pair,
+            'time_window': time_window,
+            'entry_spread': entry_spread
         })
     except Exception as e:
         logger.error(f"Error in execute_trade: {e}")
@@ -154,4 +172,16 @@ def emergency_stop(request):
         return Response({'status': 'all_positions_closed' if settings.DEMO_MODE else 'closing'})
     except Exception as e:
         logger.error(f"Error in emergency_stop: {e}")
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+def get_time_windows(request):
+    """GET /api/time_windows - Get available time window options"""
+    try:
+        return Response({
+            'windows': settings.TIME_WINDOWS,
+            'default': '5min'
+        })
+    except Exception as e:
+        logger.error(f"Error in get_time_windows: {e}")
         return Response({'error': str(e)}, status=500)
