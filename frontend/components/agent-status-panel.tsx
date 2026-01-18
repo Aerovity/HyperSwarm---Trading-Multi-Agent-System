@@ -5,8 +5,13 @@ import { AgentCard } from "@/components/agent-card"
 import { mockAgents } from "@/lib/mock-data"
 import { scoutApi, onboarderApi } from "@/lib/api"
 import type { Agent } from "@/types"
+import { cn } from "@/lib/utils"
 
-export function AgentStatusPanel() {
+interface AgentStatusPanelProps {
+  compact?: boolean
+}
+
+export function AgentStatusPanel({ compact = false }: AgentStatusPanelProps) {
   const [agents, setAgents] = useState<Agent[]>(mockAgents)
   const [mounted, setMounted] = useState(false)
 
@@ -68,17 +73,22 @@ export function AgentStatusPanel() {
   const activeCount = agents.filter((a) => a.status === "active").length
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Agent Status</h2>
-        <span className="text-sm text-muted-foreground">
+    <section data-tour="agents" className={cn(compact && "h-full flex flex-col")}>
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <h2 className={cn("font-semibold", compact ? "text-sm" : "text-lg")}>Agent Status</h2>
+        <span className="text-xs text-muted-foreground">
           {activeCount}/{agents.length} Active
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={cn(
+        "grid gap-3",
+        compact
+          ? "grid-cols-2 flex-1"
+          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      )}>
         {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
+          <AgentCard key={agent.id} agent={agent} compact={compact} />
         ))}
       </div>
     </section>

@@ -1,4 +1,73 @@
 import type { Agent, MarketData, Position, ActivityLog } from "@/types"
+import type { CandlestickData, Time } from "lightweight-charts"
+
+// Base prices for different trading pairs
+export const basePrices: Record<string, number> = {
+  "BTC/USDC": 97500,
+  "ETH/USDC": 3420,
+  "SOL/USDC": 178,
+  "BTC/ETH": 28.5,
+  "SOL/BTC": 0.00183,
+  "ARB/USDC": 0.89,
+}
+
+// Track last prices for live updates
+const lastPrices: Record<string, number> = {}
+
+// Generate mock candlestick data for Lightweight Charts
+export function generateMockCandlestickData(
+  pair: string,
+  count: number = 100
+): CandlestickData[] {
+  const basePrice = basePrices[pair] || 100
+  const data: CandlestickData[] = []
+  const now = Math.floor(Date.now() / 1000)
+  const interval = 60 // 1-minute candles
+
+  let currentPrice = basePrice * (0.98 + Math.random() * 0.04) // Start within 2% of base
+
+  for (let i = count; i >= 0; i--) {
+    const time = (now - i * interval) as Time
+
+    // Generate OHLC with realistic variation
+    const volatility = basePrice * 0.002 // 0.2% volatility per candle
+    const open = currentPrice
+    const change = (Math.random() - 0.5) * 2 * volatility
+    const close = open + change
+    const high = Math.max(open, close) + Math.random() * volatility * 0.5
+    const low = Math.min(open, close) - Math.random() * volatility * 0.5
+
+    data.push({ time, open, high, low, close })
+    currentPrice = close
+  }
+
+  // Store last price for live updates
+  lastPrices[pair] = currentPrice
+
+  return data
+}
+
+// Generate a new candle for live updates
+export function generateNewCandle(pair: string = "BTC/USDC"): CandlestickData {
+  const basePrice = basePrices[pair] || 97500
+  const now = Math.floor(Date.now() / 1000) as Time
+
+  // Get or initialize last price
+  if (!lastPrices[pair]) {
+    lastPrices[pair] = basePrice
+  }
+
+  const volatility = basePrice * 0.001
+  const open = lastPrices[pair]
+  const change = (Math.random() - 0.5) * 2 * volatility
+  const close = open + change
+  const high = Math.max(open, close) + Math.random() * volatility * 0.3
+  const low = Math.min(open, close) - Math.random() * volatility * 0.3
+
+  lastPrices[pair] = close
+
+  return { time: now, open, high, low, close }
+}
 
 export const mockAgents: Agent[] = [
   {
@@ -149,26 +218,78 @@ export const sourceChains = [
 
 export const tradingPairs = ["BTC/ETH", "SOL/BTC", "ETH/SOL", "ARB/ETH", "SOL/ETH"]
 
-// Generate spread history for charts
-export function generateSpreadHistory(hours = 24): { time: string; spread: number; zScore: number }[] {
+// Mock bridge quote generator for when backend is unavailable
+export function generateMockBridgeQuote(params: {
+  fromChain: string
+  token: string
+  amount: string
+}) {
+  const amountNum = parseFloat(params.amount) / 1_000_000 // Convert from smallest unit
+  return {
+    route_id: `mock-${Date.now()}`,
+    from_chain: params.fromChain,
+    to_chain: 'hyperliquid',
+    token: params.token,
+    amount: params.amount,
+    estimated_time: 180, // 3 minutes
+    total_cost: amountNum * 0.001, // 0.1% fee
+  }
+}
+
+export function generateMockBridgeResult() {
+  return {
+    status: 'success',
+    tx_id: `mock-tx-${Date.now()}`,
+    message: 'Bridge executed successfully (demo mode)',
+  }
+}
+
+// Generate spread history for charts - unique per trading pair
+export function generateSpreadHistory(
+  pair: string = "BTC/ETH",
+  hours = 24,
+  currentZScore?: number
+): { time: string; spread: number; zScore: number }[] {
+  // Use pair name to create unique seed
+  const seed = pair.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+
   const data = []
   const now = Date.now()
   const interval = (hours * 60 * 60 * 1000) / 48
 
+  // Create pair-specific parameters from seed
+  const phase = (seed % 100) * 0.1
+  const amplitude = 1.2 + (seed % 30) * 0.05
+  const frequency1 = 3 + (seed % 5)
+  const frequency2 = 2 + (seed % 3)
+
   for (let i = 48; i >= 0; i--) {
     const time = new Date(now - i * interval)
-    // Use deterministic sine waves instead of Math.random() to prevent hydration errors
-    // This creates realistic-looking variation without randomness
-    const basePattern = Math.sin(i / 5) * 0.05
-    const microPattern = Math.sin(i / 2.3) * 0.01  // Secondary wave for variation
-    const zScoreBase = Math.sin(i / 4) * 2
-    const zScoreVariation = Math.cos(i / 3.7) * 0.3  // Secondary wave for z-score
+
+    // Use deterministic sine waves with pair-specific parameters
+    const zScoreBase = Math.sin((i + phase) / frequency1) * amplitude
+    const zScoreVariation = Math.cos((i + phase * 0.5) / frequency2) * 0.4
+    const microVariation = Math.sin((i + phase) / 1.7) * 0.15
+
+    const zScore = zScoreBase + zScoreVariation + microVariation
+    const spread = 0.1 + zScore * 0.02
 
     data.push({
       time: time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-      spread: 0.1 + basePattern + microPattern,
-      zScore: zScoreBase + zScoreVariation,
+      spread,
+      zScore: Math.max(-3, Math.min(3, zScore)), // Clamp to ±3
     })
+  }
+
+  // If currentZScore provided, smoothly transition last few points to match
+  if (currentZScore !== undefined && data.length > 0) {
+    const lastIndex = data.length - 1
+    // Blend last 3 points towards the current Z-Score for smooth transition
+    for (let i = 0; i < 3 && lastIndex - i >= 0; i++) {
+      const blendFactor = 1 - (i * 0.3)
+      const original = data[lastIndex - i].zScore
+      data[lastIndex - i].zScore = original * (1 - blendFactor) + currentZScore * blendFactor
+    }
   }
 
   return data

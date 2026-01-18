@@ -49,7 +49,7 @@
   --glow-blue: rgba(255, 255, 255, 0.2);
 }
 
-.dark {
+.dark, .theme-dark {
   /* iOS Dark Mode - Deep blacks */
   --background: oklch(0.13 0 0);
   --foreground: oklch(0.985 0 0);
@@ -57,23 +57,19 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  /* Primary changed to white */
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.13 0 0);
-  /* Secondary - Dark gray */
   --secondary: oklch(0.23 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.18 0 0);
   --muted-foreground: oklch(0.63 0 0);
   --accent: oklch(0.23 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  /* Destructive - iOS Red #FF453A */
   --destructive: oklch(0.637 0.237 25.331);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.25 0 0);
   --input: oklch(0.23 0 0);
   --ring: oklch(0.985 0 0);
-  /* Chart colors changed to white, keeping green/red */
   --chart-1: oklch(0.723 0.219 142.5);
   --chart-2: oklch(0.985 0 0);
   --chart-3: oklch(0.985 0 0);
@@ -87,6 +83,130 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.25 0 0);
   --sidebar-ring: oklch(0.985 0 0);
+  --glass: rgba(28, 28, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glow-green: rgba(48, 209, 88, 0.4);
+  --glow-primary: rgba(255, 255, 255, 0.2);
+}
+
+/* Light Theme */
+.theme-light {
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.13 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0 0);
+  --primary: oklch(0.13 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.93 0 0);
+  --secondary-foreground: oklch(0.13 0 0);
+  --muted: oklch(0.93 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.13 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 142.5);
+  --chart-2: oklch(0.13 0 0);
+  --chart-3: oklch(0.13 0 0);
+  --chart-4: oklch(0.13 0 0);
+  --chart-5: oklch(0.577 0.245 27.325);
+  --sidebar: oklch(0.97 0 0);
+  --sidebar-foreground: oklch(0.13 0 0);
+  --sidebar-primary: oklch(0.13 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.93 0 0);
+  --sidebar-accent-foreground: oklch(0.13 0 0);
+  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --glass: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glow-green: rgba(52, 199, 89, 0.3);
+  --glow-primary: rgba(0, 0, 0, 0.1);
+}
+
+/* Neon Theme - Cyberpunk vibes */
+.theme-neon {
+  --background: oklch(0.08 0.02 280);
+  --foreground: oklch(0.9 0.15 195);
+  --card: oklch(0.12 0.03 280);
+  --card-foreground: oklch(0.9 0.15 195);
+  --popover: oklch(0.12 0.03 280);
+  --popover-foreground: oklch(0.9 0.15 195);
+  --primary: oklch(0.8 0.2 195);
+  --primary-foreground: oklch(0.08 0.02 280);
+  --secondary: oklch(0.18 0.04 280);
+  --secondary-foreground: oklch(0.9 0.15 195);
+  --muted: oklch(0.15 0.03 280);
+  --muted-foreground: oklch(0.6 0.1 195);
+  --accent: oklch(0.7 0.25 330);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.65 0.3 15);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.25 0.08 280);
+  --input: oklch(0.18 0.04 280);
+  --ring: oklch(0.8 0.2 195);
+  --chart-1: oklch(0.75 0.25 145);
+  --chart-2: oklch(0.8 0.2 195);
+  --chart-3: oklch(0.7 0.25 330);
+  --chart-4: oklch(0.8 0.2 195);
+  --chart-5: oklch(0.65 0.3 15);
+  --sidebar: oklch(0.1 0.02 280);
+  --sidebar-foreground: oklch(0.9 0.15 195);
+  --sidebar-primary: oklch(0.8 0.2 195);
+  --sidebar-primary-foreground: oklch(0.08 0.02 280);
+  --sidebar-accent: oklch(0.18 0.04 280);
+  --sidebar-accent-foreground: oklch(0.9 0.15 195);
+  --sidebar-border: oklch(0.25 0.08 280);
+  --sidebar-ring: oklch(0.8 0.2 195);
+  --glass: rgba(0, 255, 255, 0.05);
+  --glass-border: rgba(0, 255, 255, 0.15);
+  --glow-green: rgba(0, 255, 100, 0.5);
+  --glow-primary: rgba(0, 255, 255, 0.3);
+}
+
+/* Retro Theme - Synthwave purple/yellow */
+.theme-retro {
+  --background: oklch(0.15 0.08 300);
+  --foreground: oklch(0.95 0.15 85);
+  --card: oklch(0.2 0.1 300);
+  --card-foreground: oklch(0.95 0.15 85);
+  --popover: oklch(0.2 0.1 300);
+  --popover-foreground: oklch(0.95 0.15 85);
+  --primary: oklch(0.85 0.18 85);
+  --primary-foreground: oklch(0.15 0.08 300);
+  --secondary: oklch(0.25 0.12 300);
+  --secondary-foreground: oklch(0.95 0.15 85);
+  --muted: oklch(0.22 0.1 300);
+  --muted-foreground: oklch(0.7 0.1 85);
+  --accent: oklch(0.7 0.2 45);
+  --accent-foreground: oklch(0.15 0.08 300);
+  --destructive: oklch(0.6 0.25 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.35 0.15 300);
+  --input: oklch(0.25 0.12 300);
+  --ring: oklch(0.85 0.18 85);
+  --chart-1: oklch(0.75 0.2 160);
+  --chart-2: oklch(0.85 0.18 85);
+  --chart-3: oklch(0.7 0.2 45);
+  --chart-4: oklch(0.6 0.2 300);
+  --chart-5: oklch(0.6 0.25 25);
+  --sidebar: oklch(0.18 0.09 300);
+  --sidebar-foreground: oklch(0.95 0.15 85);
+  --sidebar-primary: oklch(0.85 0.18 85);
+  --sidebar-primary-foreground: oklch(0.15 0.08 300);
+  --sidebar-accent: oklch(0.25 0.12 300);
+  --sidebar-accent-foreground: oklch(0.95 0.15 85);
+  --sidebar-border: oklch(0.35 0.15 300);
+  --sidebar-ring: oklch(0.85 0.18 85);
+  --glass: rgba(157, 78, 221, 0.15);
+  --glass-border: rgba(255, 215, 0, 0.2);
+  --glow-green: rgba(0, 255, 136, 0.5);
+  --glow-primary: rgba(255, 215, 0, 0.3);
 }
 
 @theme inline {
@@ -157,8 +277,22 @@
   box-shadow: 0 0 20px var(--glow-green), 0 0 40px var(--glow-green);
 }
 
-.glow-blue {
-  box-shadow: 0 0 20px var(--glow-blue);
+.glow-primary {
+  box-shadow: 0 0 20px var(--glow-primary);
+}
+
+/* Neon theme specific glows */
+.theme-neon .glass {
+  box-shadow: 0 0 30px var(--glow-primary), inset 0 0 20px rgba(0, 255, 255, 0.03);
+}
+
+.theme-neon .glow-green {
+  box-shadow: 0 0 25px var(--glow-green), 0 0 50px var(--glow-green), 0 0 75px var(--glow-green);
+}
+
+/* Retro theme specific glows */
+.theme-retro .glass {
+  box-shadow: 0 0 25px var(--glow-primary), inset 0 0 15px rgba(255, 215, 0, 0.05);
 }
 
 /* Pulse animation for active status */
@@ -202,4 +336,66 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* High Contrast Mode - Accessibility */
+.high-contrast {
+  /* Increase contrast ratios */
+  --muted-foreground: oklch(0.75 0 0);
+
+  /* Remove transparency from glass */
+  --glass: var(--card);
+  --glass-border: var(--border);
+}
+
+.high-contrast.theme-dark,
+.high-contrast.dark {
+  --foreground: oklch(1 0 0);
+  --muted-foreground: oklch(0.85 0 0);
+  --border: oklch(0.4 0 0);
+  --glass-border: oklch(0.5 0 0);
+}
+
+.high-contrast.theme-light {
+  --foreground: oklch(0 0 0);
+  --muted-foreground: oklch(0.3 0 0);
+  --border: oklch(0.5 0 0);
+  --glass-border: oklch(0.4 0 0);
+}
+
+.high-contrast.theme-neon {
+  --foreground: oklch(1 0.2 195);
+  --muted-foreground: oklch(0.8 0.15 195);
+  --border: oklch(0.5 0.15 280);
+  --glass-border: oklch(0.6 0.2 195);
+}
+
+.high-contrast.theme-retro {
+  --foreground: oklch(1 0.2 85);
+  --muted-foreground: oklch(0.85 0.15 85);
+  --border: oklch(0.5 0.2 300);
+  --glass-border: oklch(0.7 0.18 85);
+}
+
+/* High contrast removes blur and glow effects */
+.high-contrast .glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-width: 2px;
+}
+
+.high-contrast .glow-green,
+.high-contrast .glow-primary {
+  box-shadow: none;
+}
+
+/* High contrast link underlines */
+.high-contrast a:not([class*="button"]):not([class*="btn"]) {
+  text-decoration: underline;
+}
+
+/* High contrast focus indicators */
+.high-contrast *:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }

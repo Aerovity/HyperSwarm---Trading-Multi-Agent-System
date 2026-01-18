@@ -15,9 +15,10 @@ const agentIcons = {
 
 interface AgentCardProps {
   agent: Agent
+  compact?: boolean
 }
 
-export function AgentCard({ agent }: AgentCardProps) {
+export function AgentCard({ agent, compact = false }: AgentCardProps) {
   const Icon = agentIcons[agent.type]
   const [timeAgoText, setTimeAgoText] = useState("Just now")
   const [mounted, setMounted] = useState(false)
@@ -50,6 +51,41 @@ export function AgentCard({ agent }: AgentCardProps) {
 
     return () => clearInterval(interval)
   }, [agent.lastActionTime, mounted])
+
+  if (compact) {
+    return (
+      <GlassCard className="relative overflow-hidden p-3">
+        {/* Status indicator pulse */}
+        {agent.status === "active" && (
+          <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full animate-pulse-glow bg-[#30D158]" />
+        )}
+
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 shrink-0">
+            <Icon className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-medium text-sm">{agent.name}</h3>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded text-[10px] font-medium capitalize",
+                  agent.status === "active" && "bg-[#30D158]/20 text-[#30D158]",
+                  agent.status === "idle" && "bg-white/10 text-muted-foreground",
+                  agent.status === "processing" && "bg-white/20 text-white",
+                )}
+              >
+                {agent.status}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">
+              {mounted ? timeAgoText : "Just now"}
+            </p>
+          </div>
+        </div>
+      </GlassCard>
+    )
+  }
 
   return (
     <GlassCard className="relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">

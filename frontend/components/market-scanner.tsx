@@ -5,16 +5,33 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { mockMarketData, generateSpreadHistory } from "@/lib/mock-data"
 import { scoutApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { Search, TrendingUp, TrendingDown, Sparkles } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { Search, TrendingUp, TrendingDown, Sparkles, HelpCircle } from "lucide-react"
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useTheme, Theme } from "@/lib/theme-context"
+
+// Chart line colors per theme
+const chartLineColors: Record<Theme, string> = {
+  dark: "#FFFFFF",
+  light: "#1d1d1f",
+  neon: "#00ffff",
+  retro: "#ffd700",
+}
 
 export function MarketScanner() {
+  const { theme } = useTheme()
   const [selectedPair, setSelectedPair] = useState("BTC/ETH")
   const [marketData, setMarketData] = useState(mockMarketData)
   const [isLoading, setIsLoading] = useState(false)
-  const [spreadHistory, setSpreadHistory] = useState(generateSpreadHistory(24))
+  const [spreadHistory, setSpreadHistory] = useState(() => generateSpreadHistory("BTC/ETH", 24))
 
-  // Fetch real spread history from Scout Agent
+  // Get chart line color based on current theme
+  const chartLineColor = chartLineColors[theme]
+
+  // Get current Z-Score for selected pair from market data
+  const currentZScore = marketData.find(m => m.pair === selectedPair)?.zScore
+
+  // Generate spread history when pair changes
   useEffect(() => {
     const fetchSpreadHistory = async () => {
       try {
@@ -22,24 +39,51 @@ export function MarketScanner() {
         if (data.data && data.data.length > 0) {
           setSpreadHistory(data.data)
         } else {
-          // Fallback to mock data if API returns empty
-          setSpreadHistory(generateSpreadHistory(24))
+          // Fallback to mock data if API returns empty - use pair-specific data
+          setSpreadHistory(generateSpreadHistory(selectedPair, 24, currentZScore))
         }
       } catch (error) {
         console.error('Failed to fetch spread history:', error)
-        // Fallback to mock data on error
-        setSpreadHistory(generateSpreadHistory(24))
+        // Fallback to mock data on error - use pair-specific data
+        setSpreadHistory(generateSpreadHistory(selectedPair, 24, currentZScore))
       }
     }
 
     // Fetch immediately when pair changes
     fetchSpreadHistory()
 
-    // Poll every 10 seconds for updates
-    const interval = setInterval(fetchSpreadHistory, 10000)
+    return () => {}
+  }, [selectedPair, currentZScore])
+
+  // Live update effect - add new data point every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSpreadHistory(prev => {
+        if (prev.length === 0) return prev
+
+        // Remove oldest point
+        const newData = [...prev.slice(1)]
+
+        // Add new point with slight variation from last
+        const lastZ = newData[newData.length - 1]?.zScore || 0
+        // Small random walk, biased towards current Z-Score if available
+        const targetZ = currentZScore ?? lastZ
+        const drift = (targetZ - lastZ) * 0.1 // Drift towards target
+        const noise = (Math.random() - 0.5) * 0.2 // Small random noise
+        const newZ = Math.max(-3, Math.min(3, lastZ + drift + noise))
+
+        newData.push({
+          time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          spread: 0.1 + newZ * 0.02,
+          zScore: newZ,
+        })
+
+        return newData
+      })
+    }, 3000) // Update every 3 seconds
 
     return () => clearInterval(interval)
-  }, [selectedPair])
+  }, [currentZScore])
 
   // Fetch real market data from Scout Agent
   useEffect(() => {
@@ -98,7 +142,7 @@ export function MarketScanner() {
   }
 
   return (
-    <GlassCard className="col-span-full lg:col-span-2">
+    <GlassCard className="col-span-full lg:col-span-2" data-tour="market">
       <div className="flex items-center gap-2 mb-4">
         <Search className="w-5 h-5 text-white" />
         <h3 className="font-semibold">Live Market Scanner</h3>
@@ -116,7 +160,17 @@ export function MarketScanner() {
                 <th className="text-left pb-3 font-medium">Pair</th>
                 <th className="text-right pb-3 font-medium">Price</th>
                 <th className="text-right pb-3 font-medium">24h</th>
-                <th className="text-right pb-3 font-medium">Z-Score</th>
+                <th className="text-right pb-3 font-medium">
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 justify-end">
+                      Z-Score
+                      <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[200px]">
+                      Statistical measure of price deviation. Below -2σ = oversold (buy signal). Above +2σ = overbought (sell signal).
+                    </TooltipContent>
+                  </Tooltip>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -198,7 +252,7 @@ export function MarketScanner() {
                   domain={[-3, 3]}
                   ticks={[-2, 0, 2]}
                 />
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{
                     backgroundColor: "#1C1C1E",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -213,10 +267,13 @@ export function MarketScanner() {
                 <Line
                   type="monotone"
                   dataKey="zScore"
-                  stroke="#FFFFFF"
+                  stroke={chartLineColor}
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: "#FFFFFF" }}
+                  activeDot={{ r: 4, fill: chartLineColor }}
+                  isAnimationActive={true}
+                  animationDuration={300}
+                  animationEasing="ease-in-out"
                 />
               </LineChart>
             </ResponsiveContainer>

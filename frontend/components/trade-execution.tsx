@@ -6,34 +6,88 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { tradingPairs } from "@/lib/mock-data"
-import { Zap, Shield, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { useDemoContext } from "@/lib/demo-context"
+import { Zap, Shield, CheckCircle, XCircle, Loader2, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function TradeExecution() {
+  const { addPosition, addLog } = useDemoContext()
   const [selectedPair, setSelectedPair] = useState("")
   const [positionSize, setPositionSize] = useState([50000])
   const [guardianApproved, setGuardianApproved] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [riskScore, setRiskScore] = useState<number | null>(null)
+  const [isExecuting, setIsExecuting] = useState(false)
 
   const handleCheckRisk = async () => {
     if (!selectedPair) return
     setIsChecking(true)
+
+    // Log that guardian is checking
+    addLog({
+      timestamp: new Date(),
+      agent: "guardian",
+      message: `Analyzing risk for ${selectedPair} trade ($${positionSize[0].toLocaleString()})`,
+      type: "info",
+    })
+
     // Simulate Guardian agent checking risk
     await new Promise((resolve) => setTimeout(resolve, 1500))
     const score = Math.floor(Math.random() * 40) + 60 // Score between 60-100
     setRiskScore(score)
     setGuardianApproved(score >= 70)
     setIsChecking(false)
+
+    // Log the result
+    addLog({
+      timestamp: new Date(),
+      agent: "guardian",
+      message: score >= 70
+        ? `Trade approved with risk score ${score}/100`
+        : `Trade blocked - risk score ${score}/100 below threshold`,
+      type: score >= 70 ? "success" : "warning",
+    })
   }
 
-  const handleExecute = () => {
-    // Mock execution
-    alert(`Executing pair trade: ${selectedPair} with size $${positionSize[0].toLocaleString()}`)
+  const handleExecute = async () => {
+    setIsExecuting(true)
+
+    // Simulate execution delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Create random entry spread
+    const entrySpread = Math.random() * 0.2 + 0.05
+
+    // Add the position
+    addPosition({
+      pair: selectedPair,
+      entrySpread,
+      currentSpread: entrySpread,
+      pnl: 0,
+      pnlPercent: 0,
+      riskLevel: riskScore && riskScore >= 80 ? "low" : riskScore && riskScore >= 70 ? "medium" : "high",
+      size: positionSize[0],
+      entryTime: new Date(),
+    })
+
+    // Log the execution
+    addLog({
+      timestamp: new Date(),
+      agent: "executor",
+      message: `Executed pair trade: ${selectedPair} with size $${positionSize[0].toLocaleString()}`,
+      type: "success",
+    })
+
+    // Reset form
+    setSelectedPair("")
+    setRiskScore(null)
+    setGuardianApproved(false)
+    setIsExecuting(false)
   }
 
   return (
-    <GlassCard>
+    <GlassCard data-tour="trade">
       <div className="flex items-center gap-2 mb-4">
         <Zap className="w-5 h-5 text-white" />
         <h3 className="font-semibold">Trade Execution</h3>
@@ -88,7 +142,15 @@ export function TradeExecution() {
         <div className="p-4 rounded-lg bg-secondary/30 border border-white/5">
           <div className="flex items-center gap-2 mb-3">
             <Shield className="w-4 h-4 text-[#30D158]" />
-            <span className="text-sm font-medium">Guardian Risk Assessment</span>
+            <Tooltip>
+              <TooltipTrigger className="flex items-center gap-1 text-sm font-medium">
+                Guardian Risk Assessment
+                <HelpCircle className="w-3 h-3 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                AI risk manager that analyzes your trade before execution. Scores 70+ are approved, below 70 are blocked for safety.
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {riskScore !== null ? (
@@ -140,16 +202,25 @@ export function TradeExecution() {
 
         <Button
           onClick={handleExecute}
-          disabled={!guardianApproved || !selectedPair}
+          disabled={!guardianApproved || !selectedPair || isExecuting}
           className={cn(
             "w-full haptic-press font-medium h-12",
-            guardianApproved
+            guardianApproved && !isExecuting
               ? "bg-white hover:bg-white/90 text-black"
               : "bg-secondary text-muted-foreground cursor-not-allowed",
           )}
         >
-          <Zap className="w-4 h-4 mr-2" />
-          Execute Pair Trade
+          {isExecuting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Executing...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4 mr-2" />
+              Execute Pair Trade
+            </>
+          )}
         </Button>
 
         {!guardianApproved && selectedPair && (

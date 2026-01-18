@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { GlassCard } from "@/components/ui/glass-card"
-import type { ActivityLog } from "@/types"
 import { cn } from "@/lib/utils"
 import { Activity, Search, ArrowUpDown, Zap, Shield } from "lucide-react"
+import { useDemoContext } from "@/lib/demo-context"
 
 const agentIcons = {
   scout: Search,
@@ -14,63 +14,13 @@ const agentIcons = {
 }
 
 export function ActivityLogComponent() {
-  const [logs, setLogs] = useState<ActivityLog[]>([])
+  const { activityLogs } = useDemoContext()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
 
-  // Fetch real logs from Scout and Onboarder Agent APIs
+  // Fix hydration - only render timestamps on client
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        // Fetch from both agents in parallel
-        const [scoutResponse, onboarderResponse] = await Promise.allSettled([
-          fetch('http://localhost:8001/api/agent/logs'),
-          fetch('http://localhost:8002/api/agent/logs'),
-        ])
-
-        const allLogs: ActivityLog[] = []
-
-        // Process Scout logs
-        if (scoutResponse.status === 'fulfilled' && scoutResponse.value.ok) {
-          const scoutData = await scoutResponse.value.json()
-          const scoutLogs = scoutData.map((log: any) => ({
-            id: log.id,
-            timestamp: new Date(log.timestamp),
-            agent: log.agent,
-            message: log.message,
-            type: log.type,
-          }))
-          allLogs.push(...scoutLogs)
-        }
-
-        // Process Onboarder logs
-        if (onboarderResponse.status === 'fulfilled' && onboarderResponse.value.ok) {
-          const onboarderData = await onboarderResponse.value.json()
-          const onboarderLogs = onboarderData.map((log: any) => ({
-            id: log.id,
-            timestamp: new Date(log.timestamp),
-            agent: log.agent,
-            message: log.message,
-            type: log.type,
-          }))
-          allLogs.push(...onboarderLogs)
-        }
-
-        // Sort by timestamp (newest first)
-        allLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-
-        setLogs(allLogs)
-      } catch (error) {
-        console.error('Failed to fetch agent logs:', error)
-        // Fallback to empty array, keep UI functional
-        setLogs([])
-      }
-    }
-
-    // Poll every 2 seconds for real-time updates
-    const interval = setInterval(fetchLogs, 2000)
-    fetchLogs() // Initial fetch
-
-    return () => clearInterval(interval)
+    setMounted(true)
   }, [])
 
   const formatTime = (date: Date) => {
@@ -83,15 +33,15 @@ export function ActivityLogComponent() {
   }
 
   return (
-    <GlassCard className="col-span-full">
-      <div className="flex items-center gap-2 mb-4">
+    <GlassCard className="col-span-full h-full flex flex-col">
+      <div className="flex items-center gap-2 mb-4 shrink-0">
         <Activity className="w-5 h-5 text-white" />
         <h3 className="font-semibold">Agent Activity Log</h3>
         <span className="text-xs text-muted-foreground ml-auto">Real-time</span>
       </div>
 
-      <div ref={scrollRef} className="h-[280px] overflow-y-auto space-y-2 pr-2">
-        {logs.map((log, index) => {
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-2">
+        {activityLogs.map((log, index) => {
           const Icon = agentIcons[log.agent]
 
           return (
@@ -110,7 +60,9 @@ export function ActivityLogComponent() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm capitalize text-white">{log.agent}</span>
-                  <span className="text-xs text-muted-foreground font-mono">{formatTime(log.timestamp)}</span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {mounted ? formatTime(log.timestamp) : "--:--:--"}
+                  </span>
                 </div>
                 <p
                   className={cn(
