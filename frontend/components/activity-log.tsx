@@ -17,14 +17,16 @@ export function ActivityLogComponent() {
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Fetch real logs from Scout and Onboarder Agent APIs
+  // Fetch real logs from all 4 Agent APIs
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        // Fetch from both agents in parallel
-        const [scoutResponse, onboarderResponse] = await Promise.allSettled([
+        // Fetch from all 4 agents in parallel
+        const [scoutResponse, onboarderResponse, guardianResponse, executorResponse] = await Promise.allSettled([
           fetch('http://localhost:8001/api/agent/logs'),
           fetch('http://localhost:8002/api/agent/logs'),
+          fetch('http://localhost:8003/api/agent/logs'),
+          fetch('http://localhost:8004/api/agent/logs'),
         ])
 
         const allLogs: ActivityLog[] = []
@@ -53,6 +55,32 @@ export function ActivityLogComponent() {
             type: log.type,
           }))
           allLogs.push(...onboarderLogs)
+        }
+
+        // Process Guardian logs
+        if (guardianResponse.status === 'fulfilled' && guardianResponse.value.ok) {
+          const guardianData = await guardianResponse.value.json()
+          const guardianLogs = guardianData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...guardianLogs)
+        }
+
+        // Process Executor logs
+        if (executorResponse.status === 'fulfilled' && executorResponse.value.ok) {
+          const executorData = await executorResponse.value.json()
+          const executorLogs = executorData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...executorLogs)
         }
 
         // Sort by timestamp (newest first)

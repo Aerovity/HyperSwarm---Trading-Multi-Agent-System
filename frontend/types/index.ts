@@ -21,6 +21,7 @@ export interface MarketData {
 export interface Position {
   id: string
   pair: string
+  timeWindow?: string
   entrySpread: number
   currentSpread: number
   pnl: number
@@ -28,6 +29,8 @@ export interface Position {
   riskLevel: "low" | "medium" | "high"
   size: number
   entryTime: Date
+  status?: "open" | "settled" | "closed"
+  windowExpiresAt?: Date | null
 }
 
 export interface ActivityLog {
