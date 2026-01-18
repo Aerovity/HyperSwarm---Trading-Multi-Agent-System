@@ -5,14 +5,18 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { TextShimmer } from "@/components/ui/text-shimmer"
 import { useDemoContext } from "@/lib/demo-context"
+import { orchestratorApi } from "@/lib/api"
 import { Bot, User, Send, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import ReactMarkdown from 'react-markdown'
 
 export function AIChatInterface() {
   const { chatMessages, addChatMessage } = useDemoContext()
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string>()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom on new messages
@@ -36,28 +40,32 @@ export function AIChatInterface() {
 
     setIsLoading(true)
 
-    // Simulate AI response (founder will add real orchestrator logic later)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Call real orchestrator API
+      const response = await orchestratorApi.chat({
+        message: userMessage,
+        conversation_id: conversationId,
+        user_address: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb" // Demo address
+      })
 
-    // Mock AI response based on user input
-    let responseContent = "I'm the AI trading orchestrator. I coordinate between Scout, Guardian, and Executor agents to find and execute optimal trades.\n\n"
+      // Update conversation ID
+      setConversationId(response.conversation_id)
 
-    if (userMessage.toLowerCase().includes("trade") || userMessage.toLowerCase().includes("buy") || userMessage.toLowerCase().includes("sell")) {
-      responseContent += "- Analyzing market conditions via Scout Agent\n- Checking risk parameters with Guardian\n- Ready to execute when approved"
-    } else if (userMessage.toLowerCase().includes("risk") || userMessage.toLowerCase().includes("safe")) {
-      responseContent += "- Current portfolio risk: LOW\n- Guardian monitoring all positions\n- All stop-losses in place"
-    } else if (userMessage.toLowerCase().includes("market") || userMessage.toLowerCase().includes("opportunity")) {
-      responseContent += "- Scout detected 2 opportunities\n- BTC/ETH spread at -2.1σ (buy signal)\n- SOL/USDC showing momentum"
-    } else {
-      responseContent += "- Trade execution ready\n- Risk management active\n- Market scanning operational"
+      // Add AI response
+      addChatMessage({
+        role: "assistant",
+        content: response.message,
+      })
+    } catch (error) {
+      console.error("Chat error:", error)
+      // Add error message
+      addChatMessage({
+        role: "assistant",
+        content: "❌ Sorry, I encountered an error. Please make sure the orchestrator backend is running on port 8005.",
+      })
+    } finally {
+      setIsLoading(false)
     }
-
-    addChatMessage({
-      role: "assistant",
-      content: responseContent,
-    })
-
-    setIsLoading(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -67,30 +75,41 @@ export function AIChatInterface() {
     }
   }
 
-  // Render message content with bullet point support
+  // Render message content with markdown support
   const renderContent = (content: string) => {
-    return content.split("\n").map((line, i) => {
-      const isBullet = line.startsWith("- ")
-      return (
-        <p key={i} className={cn(i > 0 && "mt-1")}>
-          {isBullet ? (
-            <span className="flex items-start gap-2">
-              <span className="text-[#30D158] mt-0.5">•</span>
-              <span>{line.slice(2)}</span>
-            </span>
-          ) : (
-            line
-          )}
-        </p>
-      )
-    })
+    return (
+      <div className="prose prose-sm prose-invert max-w-none">
+        <ReactMarkdown
+          components={{
+            h1: ({ children }) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
+            h2: ({ children }) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
+            h3: ({ children }) => <h3 className="text-sm font-bold mt-1 mb-1">{children}</h3>,
+            p: ({ children }) => <p className="my-1">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside my-1">{children}</ul>,
+            li: ({ children }) => (
+              <li className="flex items-start gap-2">
+                <span className="text-[#30D158] mt-0.5">•</span>
+                <span className="flex-1">{children}</span>
+              </li>
+            ),
+            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+            em: ({ children }) => <em className="italic">{children}</em>,
+            code: ({ children }) => (
+              <code className="bg-black/30 px-1 py-0.5 rounded text-xs">{children}</code>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    )
   }
 
   return (
-    <GlassCard className="h-full flex flex-col p-0 overflow-hidden min-h-[400px]">
+    <GlassCard className="h-full flex flex-col p-0 overflow-hidden">
       {/* Chat Messages */}
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea ref={scrollRef} className="flex-1 min-h-0 p-4">
+        <div className="space-y-4 pb-4">
           {chatMessages.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -135,7 +154,9 @@ export function AIChatInterface() {
                 <Bot className="w-4 h-4 text-[#30D158]" />
               </div>
               <div className="bg-secondary/50 rounded-lg p-3">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <TextShimmer duration={1.2} className="text-sm">
+                  Processing your request...
+                </TextShimmer>
               </div>
             </div>
           )}
@@ -143,7 +164,7 @@ export function AIChatInterface() {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-white/5">
+      <div className="flex-shrink-0 p-4 border-t border-white/5 bg-black/20">
         <div className="flex gap-2">
           <Input
             value={input}

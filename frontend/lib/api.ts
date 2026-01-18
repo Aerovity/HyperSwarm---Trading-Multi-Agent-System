@@ -9,6 +9,7 @@ const API_BASE_URLS = {
   onboarder: process.env.NEXT_PUBLIC_ONBOARDER_API_URL || 'http://localhost:8002',
   guardian: process.env.NEXT_PUBLIC_GUARDIAN_API_URL || 'http://localhost:8003',
   executor: process.env.NEXT_PUBLIC_EXECUTOR_API_URL || 'http://localhost:8004',
+  orchestrator: process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8005',
 }
 
 class APIError extends Error {
@@ -19,7 +20,7 @@ class APIError extends Error {
 }
 
 async function apiClient<T>(
-  service: 'scout' | 'onboarder' | 'guardian' | 'executor',
+  service: 'scout' | 'onboarder' | 'guardian' | 'executor' | 'orchestrator',
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -252,6 +253,45 @@ export const executorApi = {
   // NEW: Get available time window options
   getTimeWindows: () =>
     apiClient<{ windows: Record<string, { periods: number; display: string }>; default: string }>('executor', '/api/time_windows'),
+}
+
+// Orchestrator Agent API (AI-powered chat interface)
+export const orchestratorApi = {
+  chat: async (data: {
+    message: string
+    conversation_id?: string
+    user_address?: string
+  }) => {
+    try {
+      return await apiClient<{
+        conversation_id: string
+        message: string
+        status: string
+      }>('orchestrator', '/api/orchestrator/chat', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.error('Orchestrator chat error:', error)
+      // Return mock response if orchestrator unavailable
+      return {
+        conversation_id: data.conversation_id || `conv_${Date.now()}`,
+        message: "I'm having trouble connecting to the orchestrator service. Please make sure the backend is running on port 8005.",
+        status: 'error'
+      }
+    }
+  },
+
+  getLogs: (limit: number = 50) =>
+    apiClient<any[]>('orchestrator', `/api/agent/logs?limit=${limit}`),
+
+  healthCheck: async () => {
+    try {
+      return await apiClient<any>('orchestrator', '/api/health')
+    } catch {
+      return { status: 'unavailable', service: 'orchestrator' }
+    }
+  },
 }
 
 // Combined agent logs from all services
