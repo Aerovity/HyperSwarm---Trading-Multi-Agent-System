@@ -16,6 +16,10 @@ urlpatterns = [
     path('risk/metrics', views.risk_metrics, name='risk_metrics'),
     path('alerts', views.get_alerts, name='alerts'),
 
-    # Trade approval (LLM-powered)
+    # Trade approval (LLM-powered with Reflexion learning)
     path('trade/approve', views.approve_trade, name='approve_trade'),
+    path('trade/outcome', views.record_trade_outcome, name='record_outcome'),
+
+    # Reflexion learning stats
+    path('reflexion/stats', views.get_reflexion_stats, name='reflexion_stats'),
 ]

@@ -1,7 +1,7 @@
 """
 Trade approval engine using Claude API for intelligent risk reasoning.
 Combines deterministic risk checks with LLM analysis for nuanced decisions.
-Now supports RL-based policy for learned risk assessment!
+Now supports Reflexion (Verbal RL) for learning from past trade outcomes!
 
 This is the KEY DIFFERENTIATOR - contextual AI decision making!
 """
@@ -16,6 +16,7 @@ from anthropic import Anthropic
 from django.conf import settings
 
 from .risk_calculator import check_risk_limits, calculate_health_score
+from .reflexion import ReflexionMemory
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +41,65 @@ class ApprovalEngine:
         # Default risk rules
         self.risk_limits = settings.RISK_LIMITS
 
-        # RL Policy (lazy loaded)
+        # RL Policy (lazy loaded) - DEPRECATED, use Reflexion instead
         self._rl_policy = None
         self._rl_state_encoder = None
         self._use_rl = getattr(settings, 'USE_RL_POLICY', False)
 
+        # Reflexion memory for verbal RL (learning from past decisions)
+        self._reflexion_memory = None
+        self._use_reflexion = getattr(settings, 'USE_REFLEXION', True)  # Enabled by default
+
+    def _load_reflexion_memory(self):
+        """Lazy load reflexion memory when needed."""
+        if self._reflexion_memory is not None:
+            return self._reflexion_memory
+
+        if not self._use_reflexion:
+            return None
+
+        try:
+            self._reflexion_memory = ReflexionMemory()
+            logger.info("Reflexion memory loaded successfully")
+            return self._reflexion_memory
+        except Exception as e:
+            logger.warning(f"Failed to load reflexion memory: {e}")
+            return None
+
+    def _store_decision_to_memory(
+        self,
+        approval_id: str,
+        trade_proposal: Dict,
+        portfolio_state: Dict,
+        market_conditions: Dict,
+        result: Dict
+    ):
+        """Store decision in reflexion memory immediately after making it."""
+        memory = self._load_reflexion_memory()
+        if not memory:
+            return
+
+        try:
+            memory.store_decision(
+                approval_id=approval_id,
+                pair=trade_proposal.get('pair', 'UNKNOWN'),
+                decision=result.get('decision', 'unknown'),
+                reasoning=result.get('reasoning', ''),
+                context={
+                    'zscore': trade_proposal.get('zscore'),
+                    'confidence': trade_proposal.get('confidence'),
+                    'leverage': portfolio_state.get('leverage'),
+                    'volatility': market_conditions.get('btc_volatility'),
+                    'size': trade_proposal.get('size'),
+                    'risk_score': result.get('risk_score'),
+                }
+            )
+            logger.debug(f"Stored decision {approval_id} to reflexion memory")
+        except Exception as e:
+            logger.error(f"Failed to store decision to reflexion memory: {e}")
+
     def _load_rl_policy(self):
-        """Lazy load RL policy when needed"""
+        """Lazy load RL policy when needed (DEPRECATED - use reflexion instead)"""
         if self._rl_policy is not None:
             return True
 
@@ -254,7 +307,7 @@ class ApprovalEngine:
 
         # If demo mode or no client, return based on rule checks
         if settings.DEMO_MODE or not self.client:
-            return self._generate_demo_response(
+            result = self._generate_demo_response(
                 trade_proposal,
                 portfolio_state,
                 passes_rules,
@@ -262,6 +315,15 @@ class ApprovalEngine:
                 approval_id,
                 timestamp
             )
+            # Store decision in reflexion memory
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+            return result
 
         # Build prompt and call Claude
         try:
@@ -286,13 +348,22 @@ class ApprovalEngine:
             result['approval_id'] = approval_id
             result['timestamp'] = timestamp
 
+            # Store decision in reflexion memory immediately
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+
             logger.info(f"Trade approval decision: {result['decision']} for {trade_proposal.get('pair')}")
             return result
 
         except Exception as e:
             logger.error(f"LLM approval failed: {e}")
             # Fallback to rule-based decision
-            return self._generate_demo_response(
+            result = self._generate_demo_response(
                 trade_proposal,
                 portfolio_state,
                 passes_rules,
@@ -300,6 +371,15 @@ class ApprovalEngine:
                 approval_id,
                 timestamp
             )
+            # Store decision in reflexion memory
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+            return result
 
     def _build_approval_prompt(
         self,
@@ -308,11 +388,18 @@ class ApprovalEngine:
         market_conditions: Dict,
         rule_violations: list
     ) -> str:
-        """Build structured prompt for Claude analysis"""
+        """Build structured prompt for Claude analysis with reflexion context."""
 
         violations_text = ""
         if rule_violations:
             violations_text = f"\n\nRULE VIOLATIONS DETECTED:\n" + "\n".join(f"- {v}" for v in rule_violations)
+
+        # Get reflexion context for this pair
+        pair = trade_proposal.get('pair', 'UNKNOWN')
+        reflexion_context = ""
+        memory = self._load_reflexion_memory()
+        if memory:
+            reflexion_context = memory.get_reflexion_context(pair)
 
         prompt = f"""You are the Guardian Agent, an expert risk manager for a DeFi trading system.
 
@@ -336,6 +423,9 @@ MARKET CONDITIONS:
 - Overall Market Trend: {market_conditions.get('trend', 'neutral')}
 {violations_text}
 
+PAST EXPERIENCE WITH {pair}:
+{reflexion_context}
+
 RISK RULES TO ENFORCE:
 1. Maximum 3 concurrent positions
 2. Maximum 3x leverage
@@ -350,6 +440,7 @@ Decide whether to APPROVE or REJECT this trade. Consider:
 - Is liquidation risk acceptable?
 - Are we over-concentrated in any pair?
 - Is market volatility too high right now?
+- Use your past experience with this pair to inform your decision. Avoid repeating past mistakes.
 
 Respond in JSON format ONLY (no other text):
 {{
