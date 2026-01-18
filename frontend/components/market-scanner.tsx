@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { mockMarketData, generateSpreadHistory } from "@/lib/mock-data"
 import { scoutApi } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { cn, mapPairToDisplayFormat, mapDisplayToBackendFormat } from "@/lib/utils"
 import { Search, TrendingUp, TrendingDown, Sparkles, HelpCircle } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from "recharts"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -20,7 +20,7 @@ const chartLineColors: Record<Theme, string> = {
 
 export function MarketScanner() {
   const { theme } = useTheme()
-  const [selectedPair, setSelectedPair] = useState("BTC/ETH")
+  const [selectedPair, setSelectedPair] = useState("BTC/ETH") // Display format
   const [marketData, setMarketData] = useState(mockMarketData)
   const [isLoading, setIsLoading] = useState(false)
   const [spreadHistory, setSpreadHistory] = useState(() => generateSpreadHistory("BTC/ETH", 24))
@@ -29,13 +29,16 @@ export function MarketScanner() {
   const chartLineColor = chartLineColors[theme]
 
   // Get current Z-Score for selected pair from market data
-  const currentZScore = marketData.find(m => m.pair === selectedPair)?.zScore
+  // Convert display format to backend format for lookup
+  const backendPairFormat = mapDisplayToBackendFormat(selectedPair)
+  const currentZScore = marketData.find(m => m.pair === backendPairFormat)?.zScore
 
   // Generate spread history when pair changes
   useEffect(() => {
     const fetchSpreadHistory = async () => {
       try {
-        const data = await scoutApi.getSpreadHistory(selectedPair, 24)
+        // Use backend format for API call
+        const data = await scoutApi.getSpreadHistory(backendPairFormat, 24)
         if (data.data && data.data.length > 0) {
           setSpreadHistory(data.data)
         } else {
@@ -53,7 +56,7 @@ export function MarketScanner() {
     fetchSpreadHistory()
 
     return () => {}
-  }, [selectedPair, currentZScore])
+  }, [selectedPair, currentZScore, backendPairFormat])
 
   // Live update effect - add new data point every 3 seconds
   useEffect(() => {
@@ -174,57 +177,61 @@ export function MarketScanner() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {marketData.map((market) => (
-                <tr
-                  key={market.pair}
-                  onClick={() => setSelectedPair(market.pair)}
-                  className={cn(
-                    "cursor-pointer transition-colors",
-                    selectedPair === market.pair ? "bg-white/5" : "hover:bg-white/5",
-                  )}
-                >
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{market.pair}</span>
-                      {Math.abs(market.zScore) >= 2 && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#30D158]/20 text-[#30D158] flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" />
-                          Opportunity
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">Vol: {formatVolume(market.volume24h)}</span>
-                  </td>
-                  <td className="py-3 text-right font-mono">${formatPrice(market.price)}</td>
-                  <td className="py-3 text-right">
-                    <span
-                      className={cn(
-                        "flex items-center justify-end gap-1",
-                        market.change24h >= 0 ? "text-[#30D158]" : "text-[#FF453A]",
-                      )}
-                    >
-                      {market.change24h >= 0 ? (
-                        <TrendingUp className="w-3 h-3" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3" />
-                      )}
-                      {Math.abs(market.change24h).toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="py-3 text-right">
-                    <span
-                      className={cn(
-                        "px-2 py-1 rounded-lg font-mono text-xs",
-                        getZScoreBg(market.zScore),
-                        getZScoreColor(market.zScore),
-                      )}
-                    >
-                      {market.zScore >= 0 ? "+" : ""}
-                      {market.zScore.toFixed(1)}σ
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {marketData.map((market) => {
+                // Convert backend pair format to display format
+                const displayPair = mapPairToDisplayFormat(market.pair)
+                return (
+                  <tr
+                    key={market.pair}
+                    onClick={() => setSelectedPair(displayPair)}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      selectedPair === displayPair ? "bg-white/5" : "hover:bg-white/5",
+                    )}
+                  >
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{displayPair}</span>
+                        {Math.abs(market.zScore) >= 2 && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#30D158]/20 text-[#30D158] flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            Opportunity
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">Vol: {formatVolume(market.volume24h)}</span>
+                    </td>
+                    <td className="py-3 text-right font-mono">${formatPrice(market.price)}</td>
+                    <td className="py-3 text-right">
+                      <span
+                        className={cn(
+                          "flex items-center justify-end gap-1",
+                          market.change24h >= 0 ? "text-[#30D158]" : "text-[#FF453A]",
+                        )}
+                      >
+                        {market.change24h >= 0 ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        {Math.abs(market.change24h).toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <span
+                        className={cn(
+                          "px-2 py-1 rounded-lg font-mono text-xs",
+                          getZScoreBg(market.zScore),
+                          getZScoreColor(market.zScore),
+                        )}
+                      >
+                        {market.zScore >= 0 ? "+" : ""}
+                        {market.zScore.toFixed(1)}σ
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

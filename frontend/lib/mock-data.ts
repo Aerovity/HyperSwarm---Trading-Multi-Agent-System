@@ -3,12 +3,18 @@ import type { CandlestickData, Time } from "lightweight-charts"
 
 // Base prices for different trading pairs
 export const basePrices: Record<string, number> = {
+  // Trading pair formats (used in display)
+  "BTC/ETH": 28.5,
+  "SOL/BTC": 0.00183,
+  "ETH/SOL": 19.12,
+  "ARB/ETH": 0.00026,
+  "SOL/ETH": 0.0521,
+  // Backend USDC formats (for API compatibility)
   "BTC/USDC": 97500,
   "ETH/USDC": 3420,
   "SOL/USDC": 178,
-  "BTC/ETH": 28.5,
-  "SOL/BTC": 0.00183,
   "ARB/USDC": 0.89,
+  "AVAX/USDC": 42,
 }
 
 // Track last prices for live updates
@@ -108,9 +114,8 @@ export const mockMarketData: MarketData[] = [
   { pair: "BTC/USDC", price: 97542.3, change24h: 2.34, zScore: -1.8, spread: 0.05, volume24h: 2340000000 },
   { pair: "ETH/USDC", price: 3421.5, change24h: -1.22, zScore: 0.5, spread: 0.08, volume24h: 890000000 },
   { pair: "SOL/USDC", price: 178.92, change24h: 5.67, zScore: -2.3, spread: 0.12, volume24h: 456000000 },
-  { pair: "BTC/ETH", price: 28.52, change24h: 3.56, zScore: 2.1, spread: 0.15, volume24h: 123000000 },
-  { pair: "SOL/BTC", price: 0.00183, change24h: 3.33, zScore: -0.8, spread: 0.18, volume24h: 67000000 },
   { pair: "ARB/USDC", price: 0.892, change24h: -2.45, zScore: 1.2, spread: 0.22, volume24h: 34000000 },
+  { pair: "AVAX/USDC", price: 42.15, change24h: 1.87, zScore: 2.1, spread: 0.15, volume24h: 123000000 },
 ]
 
 export const mockPositions: Position[] = [

@@ -10,7 +10,7 @@ import { PositionMonitor } from "@/components/position-monitor"
 import { Header } from "@/components/header"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { basePrices } from "@/lib/mock-data"
+import { tradingPairs } from "@/lib/mock-data"
 
 // Dynamic import for TradingChart to avoid SSR issues with Lightweight Charts
 const TradingChart = dynamic(
@@ -25,11 +25,8 @@ const TradingChart = dynamic(
   }
 )
 
-// Get available pairs from basePrices
-const availablePairs = Object.keys(basePrices)
-
 export function SinglePageDashboard() {
-  const [selectedPair, setSelectedPair] = useState("BTC/USDC")
+  const [selectedPair, setSelectedPair] = useState("BTC/ETH")
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
@@ -55,7 +52,7 @@ export function SinglePageDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-secondary border-white/10">
-                      {availablePairs.map((pair) => (
+                      {tradingPairs.map((pair) => (
                         <SelectItem key={pair} value={pair}>
                           {pair}
                         </SelectItem>
