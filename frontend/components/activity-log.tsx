@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
 import { Activity, Search, ArrowUpDown, Zap, Shield } from "lucide-react"
 import { useDemoContext } from "@/lib/demo-context"
+import type { ActivityLog } from "@/types"
 
 const agentIcons = {
   scout: Search,
@@ -14,9 +15,15 @@ const agentIcons = {
 }
 
 export function ActivityLogComponent() {
-  const { activityLogs } = useDemoContext()
+  const { activityLogs: demoLogs } = useDemoContext()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
+  const [logs, setLogs] = useState<ActivityLog[]>([])
+
+  // Fix hydration - only render timestamps on client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch real logs from all 4 Agent APIs
   useEffect(() => {
@@ -120,7 +127,7 @@ export function ActivityLogComponent() {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-2">
-        {activityLogs.map((log, index) => {
+        {(logs.length > 0 ? logs : demoLogs).map((log, index) => {
           const Icon = agentIcons[log.agent]
 
           return (

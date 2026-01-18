@@ -6,6 +6,7 @@ import { TradeSidebar } from "@/components/trade-sidebar"
 import { MarketScannerTable } from "@/components/market-scanner-table"
 import { AgentStatusPanel } from "@/components/agent-status-panel"
 import { ActivityLogComponent } from "@/components/activity-log"
+import { PositionMonitor } from "@/components/position-monitor"
 import { Header } from "@/components/header"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -82,17 +83,22 @@ export function SinglePageDashboard() {
             </div>
           </section>
 
-          {/* Bottom Row - Agent Status + Activity Log */}
-          <section className="flex-shrink-0 h-[240px] grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Agent Status - Left (1/3) */}
-            <div className="lg:col-span-1 min-h-0">
-              <GlassCard className="h-full p-3 overflow-auto">
-                <AgentStatusPanel compact />
-              </GlassCard>
+          {/* Agent Status - Horizontal Strip */}
+          <section className="flex-shrink-0">
+            <GlassCard className="p-3">
+              <AgentStatusPanel compact horizontal />
+            </GlassCard>
+          </section>
+
+          {/* Bottom Row - Position Monitor + Activity Log (scrollable) */}
+          <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[65%_35%] gap-4">
+            {/* Position Monitor - Left (scrollable) */}
+            <div className="min-h-0 overflow-auto">
+              <PositionMonitor />
             </div>
 
-            {/* Activity Log - Right (2/3) */}
-            <div className="lg:col-span-2 min-h-0 overflow-hidden">
+            {/* Activity Log - Right (scrollable) */}
+            <div className="min-h-0 overflow-auto">
               <ActivityLogComponent />
             </div>
           </section>

@@ -10,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useState, useEffect } from "react"
 
 export function PositionMonitor() {
-  const { positions, closePosition, addLog } = useDemoContext()
   const [isMounted, setIsMounted] = useState(false)
   const [positions, setPositions] = useState(mockPositions)
 
@@ -100,64 +99,10 @@ export function PositionMonitor() {
     <GlassCard className="col-span-full">
       <div className="flex items-center gap-2 mb-4">
         <Activity className="w-5 h-5 text-white" />
-        <h3 className="font-semibold">Position Monitor</h3>
+        <h3 className="font-semibold">Transaction History</h3>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Total PnL Card */}
-        <div className="lg:col-span-1">
-          <div className="glass rounded-lg p-4 h-full flex flex-col justify-center">
-            <span className="text-sm text-muted-foreground mb-1">Total Portfolio PnL</span>
-            <div
-              className={cn("text-3xl font-bold tracking-tight", totalPnL >= 0 ? "text-[#30D158]" : "text-[#FF453A]")}
-            >
-              ${Math.abs(totalPnL).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div
-              className={cn(
-                "flex items-center gap-1 text-sm mt-1",
-                totalPnLPercent >= 0 ? "text-[#30D158]" : "text-[#FF453A]",
-              )}
-            >
-              {totalPnLPercent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {Math.abs(totalPnLPercent).toFixed(2)}%
-            </div>
-
-            {/* Liquidation Health */}
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="flex items-center justify-between mb-2">
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1 text-xs text-muted-foreground">
-                    Liquidation Health
-                    <HelpCircle className="w-3 h-3" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[200px]">
-                    How safe your positions are from forced closure. Below 50% = danger zone. Below 25% = liquidation risk.
-                  </TooltipContent>
-                </Tooltip>
-                <span className="text-xs font-medium" style={{ color: getHealthColor(liquidationHealth) }}>
-                  {liquidationHealth}%
-                </span>
-              </div>
-              <Progress
-                value={liquidationHealth}
-                className="h-2 bg-white/10"
-                style={{
-                  ["--progress-foreground" as string]: getHealthColor(liquidationHealth),
-                }}
-              />
-              {liquidationHealth < 50 && (
-                <div className="flex items-center gap-1 mt-2 text-xs text-white">
-                  <AlertTriangle className="w-3 h-3" />
-                  Consider reducing position size
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Positions Table */}
-        <div className="lg:col-span-3 overflow-x-auto">
+      <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-muted-foreground text-xs uppercase">
@@ -237,7 +182,6 @@ export function PositionMonitor() {
               )}
             </tbody>
           </table>
-        </div>
       </div>
     </GlassCard>
   )

@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils"
 
 interface AgentStatusPanelProps {
   compact?: boolean
+  horizontal?: boolean
 }
 
-export function AgentStatusPanel({ compact = false }: AgentStatusPanelProps) {
+export function AgentStatusPanel({ compact = false, horizontal = false }: AgentStatusPanelProps) {
   const [agents, setAgents] = useState<Agent[]>(mockAgents)
   const [mounted, setMounted] = useState(false)
 
@@ -103,9 +104,11 @@ export function AgentStatusPanel({ compact = false }: AgentStatusPanelProps) {
 
       <div className={cn(
         "grid gap-3",
-        compact
-          ? "grid-cols-2 flex-1"
-          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        horizontal
+          ? "grid-cols-4"
+          : compact
+            ? "grid-cols-2 flex-1"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       )}>
         {agents.map((agent) => (
           <AgentCard key={agent.id} agent={agent} compact={compact} />
