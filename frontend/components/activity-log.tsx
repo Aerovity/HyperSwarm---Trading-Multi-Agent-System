@@ -18,9 +18,88 @@ export function ActivityLogComponent() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
 
-  // Fix hydration - only render timestamps on client
+  // Fetch real logs from all 4 Agent APIs
   useEffect(() => {
-    setMounted(true)
+    const fetchLogs = async () => {
+      try {
+        // Fetch from all 4 agents in parallel
+        const [scoutResponse, onboarderResponse, guardianResponse, executorResponse] = await Promise.allSettled([
+          fetch('http://localhost:8001/api/agent/logs'),
+          fetch('http://localhost:8002/api/agent/logs'),
+          fetch('http://localhost:8003/api/agent/logs'),
+          fetch('http://localhost:8004/api/agent/logs'),
+        ])
+
+        const allLogs: ActivityLog[] = []
+
+        // Process Scout logs
+        if (scoutResponse.status === 'fulfilled' && scoutResponse.value.ok) {
+          const scoutData = await scoutResponse.value.json()
+          const scoutLogs = scoutData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...scoutLogs)
+        }
+
+        // Process Onboarder logs
+        if (onboarderResponse.status === 'fulfilled' && onboarderResponse.value.ok) {
+          const onboarderData = await onboarderResponse.value.json()
+          const onboarderLogs = onboarderData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...onboarderLogs)
+        }
+
+        // Process Guardian logs
+        if (guardianResponse.status === 'fulfilled' && guardianResponse.value.ok) {
+          const guardianData = await guardianResponse.value.json()
+          const guardianLogs = guardianData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...guardianLogs)
+        }
+
+        // Process Executor logs
+        if (executorResponse.status === 'fulfilled' && executorResponse.value.ok) {
+          const executorData = await executorResponse.value.json()
+          const executorLogs = executorData.map((log: any) => ({
+            id: log.id,
+            timestamp: new Date(log.timestamp),
+            agent: log.agent,
+            message: log.message,
+            type: log.type,
+          }))
+          allLogs.push(...executorLogs)
+        }
+
+        // Sort by timestamp (newest first)
+        allLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+        setLogs(allLogs)
+      } catch (error) {
+        console.error('Failed to fetch agent logs:', error)
+        // Fallback to empty array, keep UI functional
+        setLogs([])
+      }
+    }
+
+    // Poll every 2 seconds for real-time updates
+    const interval = setInterval(fetchLogs, 2000)
+    fetchLogs() // Initial fetch
+
+    return () => clearInterval(interval)
   }, [])
 
   const formatTime = (date: Date) => {

@@ -1,0 +1,19 @@
+# Django Core
+Django==5.0.1
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Data & Caching
+redis==5.0.1
+hiredis==2.3.2
+
+# Trading APIs
+hyperliquid-python-sdk==0.4.0
+requests==2.31.0
+
+# Utilities
+python-dotenv==1.0.0
+numpy==1.26.3
+
+# Testing
+coverage==7.4.0

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { AgentCard } from "@/components/agent-card"
 import { mockAgents } from "@/lib/mock-data"
-import { scoutApi, onboarderApi } from "@/lib/api"
+import { scoutApi, onboarderApi, guardianApi, executorApi } from "@/lib/api"
 import type { Agent } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -25,10 +25,12 @@ export function AgentStatusPanel({ compact = false }: AgentStatusPanelProps) {
 
     const checkAgentHealth = async () => {
       try {
-        // Check health of both agents in parallel
-        const [scoutHealth, onboarderHealth] = await Promise.allSettled([
+        // Check health of all 4 agents in parallel
+        const [scoutHealth, onboarderHealth, guardianHealth, executorHealth] = await Promise.allSettled([
           scoutApi.healthCheck(),
           onboarderApi.healthCheck(),
+          guardianApi.healthCheck(),
+          executorApi.healthCheck(),
         ])
 
         // Update agent statuses based on health checks
@@ -48,6 +50,24 @@ export function AgentStatusPanel({ compact = false }: AgentStatusPanelProps) {
                 ...agent,
                 status: onboarderHealth.value.status === 'healthy' ? 'active' : 'idle',
                 lastAction: `Redis: ${onboarderHealth.value.redis}`,
+                lastActionTime: new Date(),
+              } as Agent
+            }
+
+            if (agent.type === 'guardian' && guardianHealth.status === 'fulfilled') {
+              return {
+                ...agent,
+                status: guardianHealth.value.status === 'healthy' ? 'active' : 'idle',
+                lastAction: `Redis: ${guardianHealth.value.redis}, Claude: ${guardianHealth.value.anthropic || 'N/A'}`,
+                lastActionTime: new Date(),
+              } as Agent
+            }
+
+            if (agent.type === 'executor' && executorHealth.status === 'fulfilled') {
+              return {
+                ...agent,
+                status: executorHealth.value.status === 'healthy' ? 'active' : 'idle',
+                lastAction: `Redis: ${executorHealth.value.redis}`,
                 lastActionTime: new Date(),
               } as Agent
             }
