@@ -1,6 +1,7 @@
 """
 Trade approval engine using Claude API for intelligent risk reasoning.
 Combines deterministic risk checks with LLM analysis for nuanced decisions.
+Now supports Reflexion (Verbal RL) for learning from past trade outcomes!
 
 This is the KEY DIFFERENTIATOR - contextual AI decision making!
 """
@@ -8,26 +9,28 @@ This is the KEY DIFFERENTIATOR - contextual AI decision making!
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
 from anthropic import Anthropic
 from django.conf import settings
 
 from .risk_calculator import check_risk_limits, calculate_health_score
+from .reflexion import ReflexionMemory
 
 logger = logging.getLogger(__name__)
 
 
 class ApprovalEngine:
-    """Trade approval engine with LLM-powered reasoning"""
+    """Trade approval engine with LLM-powered reasoning and RL policy support"""
 
     def __init__(self):
-        """Initialize Claude client"""
+        """Initialize Claude client and RL policy"""
         self.api_key = settings.ANTHROPIC_API_KEY
         self.model = settings.ANTHROPIC_MODEL
         self.client = None
 
-        # Initialize client if API key is available
+        # Initialize Claude client if API key is available
         if self.api_key:
             try:
                 self.client = Anthropic(api_key=self.api_key)
@@ -37,6 +40,193 @@ class ApprovalEngine:
 
         # Default risk rules
         self.risk_limits = settings.RISK_LIMITS
+
+        # RL Policy (lazy loaded) - DEPRECATED, use Reflexion instead
+        self._rl_policy = None
+        self._rl_state_encoder = None
+        self._use_rl = getattr(settings, 'USE_RL_POLICY', False)
+
+        # Reflexion memory for verbal RL (learning from past decisions)
+        self._reflexion_memory = None
+        self._use_reflexion = getattr(settings, 'USE_REFLEXION', True)  # Enabled by default
+
+    def _load_reflexion_memory(self):
+        """Lazy load reflexion memory when needed."""
+        if self._reflexion_memory is not None:
+            return self._reflexion_memory
+
+        if not self._use_reflexion:
+            return None
+
+        try:
+            self._reflexion_memory = ReflexionMemory()
+            logger.info("Reflexion memory loaded successfully")
+            return self._reflexion_memory
+        except Exception as e:
+            logger.warning(f"Failed to load reflexion memory: {e}")
+            return None
+
+    def _store_decision_to_memory(
+        self,
+        approval_id: str,
+        trade_proposal: Dict,
+        portfolio_state: Dict,
+        market_conditions: Dict,
+        result: Dict
+    ):
+        """Store decision in reflexion memory immediately after making it."""
+        memory = self._load_reflexion_memory()
+        if not memory:
+            return
+
+        try:
+            memory.store_decision(
+                approval_id=approval_id,
+                pair=trade_proposal.get('pair', 'UNKNOWN'),
+                decision=result.get('decision', 'unknown'),
+                reasoning=result.get('reasoning', ''),
+                context={
+                    'zscore': trade_proposal.get('zscore'),
+                    'confidence': trade_proposal.get('confidence'),
+                    'leverage': portfolio_state.get('leverage'),
+                    'volatility': market_conditions.get('btc_volatility'),
+                    'size': trade_proposal.get('size'),
+                    'risk_score': result.get('risk_score'),
+                }
+            )
+            logger.debug(f"Stored decision {approval_id} to reflexion memory")
+        except Exception as e:
+            logger.error(f"Failed to store decision to reflexion memory: {e}")
+
+    def _load_rl_policy(self):
+        """Lazy load RL policy when needed (DEPRECATED - use reflexion instead)"""
+        if self._rl_policy is not None:
+            return True
+
+        if not self._use_rl:
+            return False
+
+        try:
+            from .rl.policy import PolicyWrapper
+            from .rl.state_encoder import StateEncoder
+
+            model_path = getattr(settings, 'RL_MODEL_PATH', './data/models/guardian_ppo_latest')
+
+            # Check if model exists
+            if not Path(model_path).exists() and not Path(f"{model_path}.zip").exists():
+                logger.warning(f"RL model not found at {model_path}, falling back to rules")
+                return False
+
+            self._rl_policy = PolicyWrapper.load(model_path)
+            self._rl_state_encoder = StateEncoder()
+            logger.info(f"RL policy loaded from {model_path}")
+            return True
+
+        except ImportError as e:
+            logger.warning(f"RL dependencies not available: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to load RL policy: {e}")
+            return False
+
+    def _rl_approve(
+        self,
+        trade_proposal: Dict,
+        portfolio_state: Dict,
+        market_conditions: Dict,
+    ) -> Optional[Dict]:
+        """
+        Get approval decision from RL policy.
+
+        Returns None if RL is not available or fails.
+        """
+        if not self._load_rl_policy():
+            return None
+
+        try:
+            import pandas as pd
+            import numpy as np
+
+            # Build portfolio state dict
+            portfolio = {
+                'account_value': portfolio_state.get('total_value', 10000),
+                'current_leverage': portfolio_state.get('leverage', 0),
+                'margin_usage': portfolio_state.get('margin_usage', 0) / 100,
+                'num_positions': portfolio_state.get('num_positions', 0),
+                'liquidation_distance': portfolio_state.get('liquidation_distance', 100) / 100,
+                'health_score': calculate_health_score(
+                    portfolio_state.get('leverage', 0),
+                    portfolio_state.get('num_positions', 0),
+                    portfolio_state.get('margin_usage', 0) / 100,
+                    portfolio_state.get('liquidation_distance', 100) / 100,
+                ),
+            }
+
+            # Build trade proposal dict
+            trade = {
+                'size': trade_proposal.get('size', 0),
+                'leverage': portfolio_state.get('leverage', 1.0),
+                'confidence': trade_proposal.get('confidence', 0.5),
+                'z_score': trade_proposal.get('zscore', 0),
+                'account_value': portfolio_state.get('total_value', 10000),
+            }
+
+            # Build market data (use dummy values if not available)
+            market_data = pd.Series({
+                'rsi_14': 50,
+                'macd': 0,
+                'macd_signal': 0,
+                'macd_diff': 0,
+                'bb_position': 0,
+                'atr_normalized': market_conditions.get('btc_volatility', 2) / 100,
+                'adx': 25,
+                'volume_ratio': 1.0,
+                'momentum_1h': 0,
+                'momentum_4h': 0,
+                'momentum_24h': 0,
+                'returns': 0,
+                'stoch_k': 50,
+                'stoch_d': 50,
+            })
+
+            # Encode state
+            state = self._rl_state_encoder.encode(
+                portfolio, trade, market_data, already_normalized=False
+            )
+
+            # Get prediction
+            deterministic = getattr(settings, 'RL_DETERMINISTIC', True)
+            action, probs, value = self._rl_policy.predict_with_probs(state.reshape(1, -1))
+
+            # Map action to decision
+            action_map = {
+                0: ('reject', 'high'),
+                1: ('approve', 'medium'),  # approve with warning
+                2: ('approve', 'low'),
+            }
+            decision, risk_level = action_map.get(action, ('reject', 'high'))
+
+            # Calculate risk score from probabilities
+            # Higher approve probability = higher risk score (safer)
+            risk_score = int((probs[1] * 0.7 + probs[2] * 1.0) * 100)
+
+            return {
+                'decision': decision,
+                'risk_score': risk_score,
+                'risk_level': risk_level,
+                'reasoning': f"RL policy decision (action={action}, confidence={probs[action]:.2f})",
+                'concerns': [],
+                'source': 'rl_policy',
+                'action_probs': {
+                    'reject': float(probs[0]),
+                    'approve_warning': float(probs[1]),
+                    'approve': float(probs[2]),
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"RL policy prediction failed: {e}")
+            return None
 
     def approve_trade_with_llm_reasoning(
         self,
@@ -98,9 +288,26 @@ class ApprovalEngine:
             risk_limits=self.risk_limits
         )
 
+        # Try RL policy first if enabled
+        if self._use_rl:
+            rl_result = self._rl_approve(trade_proposal, portfolio_state, market_conditions)
+            if rl_result is not None:
+                # Apply safety net: reject if rule violations exist
+                fallback_to_rules = getattr(settings, 'RL_FALLBACK_TO_RULES', True)
+                if fallback_to_rules and not passes_rules:
+                    rl_result['decision'] = 'reject'
+                    rl_result['rule_violations'] = violations
+                    rl_result['reasoning'] += f" Overridden by rule violations: {', '.join(violations[:2])}"
+
+                rl_result['approval_id'] = approval_id
+                rl_result['timestamp'] = timestamp
+                rl_result['rule_violations'] = violations
+                logger.info(f"RL policy decision: {rl_result['decision']} for {trade_proposal.get('pair')}")
+                return rl_result
+
         # If demo mode or no client, return based on rule checks
         if settings.DEMO_MODE or not self.client:
-            return self._generate_demo_response(
+            result = self._generate_demo_response(
                 trade_proposal,
                 portfolio_state,
                 passes_rules,
@@ -108,6 +315,15 @@ class ApprovalEngine:
                 approval_id,
                 timestamp
             )
+            # Store decision in reflexion memory
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+            return result
 
         # Build prompt and call Claude
         try:
@@ -132,13 +348,22 @@ class ApprovalEngine:
             result['approval_id'] = approval_id
             result['timestamp'] = timestamp
 
+            # Store decision in reflexion memory immediately
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+
             logger.info(f"Trade approval decision: {result['decision']} for {trade_proposal.get('pair')}")
             return result
 
         except Exception as e:
             logger.error(f"LLM approval failed: {e}")
             # Fallback to rule-based decision
-            return self._generate_demo_response(
+            result = self._generate_demo_response(
                 trade_proposal,
                 portfolio_state,
                 passes_rules,
@@ -146,6 +371,15 @@ class ApprovalEngine:
                 approval_id,
                 timestamp
             )
+            # Store decision in reflexion memory
+            self._store_decision_to_memory(
+                approval_id=approval_id,
+                trade_proposal=trade_proposal,
+                portfolio_state=portfolio_state,
+                market_conditions=market_conditions,
+                result=result
+            )
+            return result
 
     def _build_approval_prompt(
         self,
@@ -154,11 +388,18 @@ class ApprovalEngine:
         market_conditions: Dict,
         rule_violations: list
     ) -> str:
-        """Build structured prompt for Claude analysis"""
+        """Build structured prompt for Claude analysis with reflexion context."""
 
         violations_text = ""
         if rule_violations:
             violations_text = f"\n\nRULE VIOLATIONS DETECTED:\n" + "\n".join(f"- {v}" for v in rule_violations)
+
+        # Get reflexion context for this pair
+        pair = trade_proposal.get('pair', 'UNKNOWN')
+        reflexion_context = ""
+        memory = self._load_reflexion_memory()
+        if memory:
+            reflexion_context = memory.get_reflexion_context(pair)
 
         prompt = f"""You are the Guardian Agent, an expert risk manager for a DeFi trading system.
 
@@ -182,6 +423,9 @@ MARKET CONDITIONS:
 - Overall Market Trend: {market_conditions.get('trend', 'neutral')}
 {violations_text}
 
+PAST EXPERIENCE WITH {pair}:
+{reflexion_context}
+
 RISK RULES TO ENFORCE:
 1. Maximum 3 concurrent positions
 2. Maximum 3x leverage
@@ -196,6 +440,7 @@ Decide whether to APPROVE or REJECT this trade. Consider:
 - Is liquidation risk acceptable?
 - Are we over-concentrated in any pair?
 - Is market volatility too high right now?
+- Use your past experience with this pair to inform your decision. Avoid repeating past mistakes.
 
 Respond in JSON format ONLY (no other text):
 {{
