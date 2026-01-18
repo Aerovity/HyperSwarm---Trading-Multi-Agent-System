@@ -84,7 +84,8 @@ def log_trade_approval(
         risk_score: Risk score 0-100
     """
     log_type = "success" if decision == "approve" else "warning"
-    message = f"Trade {decision}d for {trade_pair} (risk score: {risk_score})"
+    action = "approved" if decision == "approve" else "rejected"
+    message = f"Trade {action} for {trade_pair} (risk score: {risk_score})"
 
     log_agent_activity(
         agent="guardian",

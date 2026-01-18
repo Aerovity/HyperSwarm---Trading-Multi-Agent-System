@@ -31,6 +31,7 @@ from .utils.logger import (
     log_trade_approval,
     log_risk_alert,
 )
+from .utils.reflexion import ReflexionMemory
 
 logger = logging.getLogger(__name__)
 
@@ -417,4 +418,116 @@ def get_alerts(request):
 
     except Exception as e:
         logger.error(f"Error in get_alerts: {e}")
+        return Response({'error': str(e)}, status=500)
+
+
+# Singleton reflexion memory for outcome recording
+_reflexion_memory = None
+
+
+def get_reflexion_memory() -> ReflexionMemory:
+    """Get or create ReflexionMemory singleton."""
+    global _reflexion_memory
+    if _reflexion_memory is None:
+        _reflexion_memory = ReflexionMemory()
+    return _reflexion_memory
+
+
+@api_view(['POST'])
+def record_trade_outcome(request):
+    """
+    POST /api/trade/outcome - Record the outcome of a trade.
+    Triggers lesson generation for reflexion learning.
+
+    Request Body:
+        approval_id (required): The approval ID of the trade
+        pnl (required): Profit/loss as decimal (e.g., 0.025 = +2.5%)
+        entry_price (optional): Entry price of the trade
+        exit_price (optional): Exit price of the trade
+    """
+    try:
+        data = request.data
+
+        approval_id = data.get('approval_id')
+        pnl = data.get('pnl')
+        entry_price = data.get('entry_price')
+        exit_price = data.get('exit_price')
+
+        if not approval_id:
+            return Response({'error': 'approval_id is required'}, status=400)
+
+        if pnl is None:
+            return Response({'error': 'pnl is required'}, status=400)
+
+        try:
+            pnl = float(pnl)
+        except (ValueError, TypeError):
+            return Response({'error': 'pnl must be a number'}, status=400)
+
+        # Record outcome and generate lesson
+        memory = get_reflexion_memory()
+        details = {}
+        if entry_price is not None:
+            details['entry_price'] = entry_price
+        if exit_price is not None:
+            details['exit_price'] = exit_price
+
+        lesson = memory.record_outcome(
+            approval_id=approval_id,
+            pnl=pnl,
+            details=details
+        )
+
+        if lesson is None:
+            return Response({
+                'status': 'warning',
+                'message': f'No decision found for approval_id {approval_id}. Outcome not recorded.',
+            }, status=404)
+
+        # Log the outcome
+        log_agent_activity(
+            "guardian", "info",
+            f"Trade outcome recorded: {approval_id}, PnL: {pnl*100:+.2f}%",
+            data={"approval_id": approval_id, "pnl": pnl, "lesson": lesson}
+        )
+
+        return Response({
+            'status': 'recorded',
+            'approval_id': approval_id,
+            'pnl': pnl,
+            'lesson': lesson,
+        })
+
+    except Exception as e:
+        logger.error(f"Error in record_trade_outcome: {e}")
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def get_reflexion_stats(request):
+    """
+    GET /api/reflexion/stats - Get reflexion learning statistics for a pair.
+
+    Query Parameters:
+        pair (required): Trading pair (e.g., "BTC/ETH")
+    """
+    try:
+        pair = request.query_params.get('pair')
+        if not pair:
+            return Response({'error': 'pair parameter is required'}, status=400)
+
+        memory = get_reflexion_memory()
+        stats = memory.get_pair_statistics(pair)
+        lessons = memory.get_lessons_for_pair(pair, limit=10)
+        context = memory.get_reflexion_context(pair)
+
+        return Response({
+            'pair': pair,
+            'stats': stats,
+            'lessons': lessons,
+            'context': context,
+        })
+
+    except Exception as e:
+        logger.error(f"Error in get_reflexion_stats: {e}")
         return Response({'error': str(e)}, status=500)
