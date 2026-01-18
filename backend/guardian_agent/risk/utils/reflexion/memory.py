@@ -22,14 +22,18 @@ logger = logging.getLogger(__name__)
 class ReflexionMemory:
     """Text-based memory for Guardian agent decisions and lessons."""
 
-    def __init__(self, redis_db: int = 3, data_dir: str = None):
+    def __init__(self, redis_db: int = None, data_dir: str = None):
         """
         Initialize reflexion memory.
 
         Args:
-            redis_db: Redis database number (default 3, separate from main cache)
+            redis_db: Redis database number (default from settings.REFLEXION_REDIS_DB or 3)
             data_dir: Directory for JSON backups (default ./data/reflexion)
         """
+        # Use setting if redis_db not explicitly provided
+        if redis_db is None:
+            redis_db = getattr(settings, 'REFLEXION_REDIS_DB', 3)
+
         # Redis connection
         try:
             self.redis = redis.Redis(
