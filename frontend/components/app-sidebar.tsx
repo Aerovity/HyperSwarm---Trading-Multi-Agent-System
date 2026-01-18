@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Home, Zap, Activity, Settings, ChevronLeft, ChevronRight } from "lucide-react"
@@ -32,9 +33,13 @@ export function AppSidebar() {
         "flex items-center h-16 px-4 border-b border-border",
         collapsed ? "justify-center" : "gap-2"
       )}>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-foreground to-foreground/60 flex items-center justify-center">
-          <span className="text-background font-bold text-sm">HS</span>
-        </div>
+        <Image
+          src="/logo.png"
+          alt="HyperSwarm Logo"
+          width={32}
+          height={32}
+          className="rounded-lg"
+        />
         {!collapsed && (
           <span className="font-semibold text-lg">HyperSwarm</span>
         )}

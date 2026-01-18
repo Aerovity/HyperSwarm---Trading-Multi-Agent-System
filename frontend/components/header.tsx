@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Wallet, Wifi, ChevronDown } from "lucide-react"
 
@@ -18,6 +19,13 @@ export function Header() {
     <header className="sticky top-0 z-50 glass border-b border-white/5">
       <div className="px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="HyperSwarm Logo"
+            width={36}
+            height={36}
+            className="rounded-lg"
+          />
           <span className="text-xl font-semibold tracking-tight">HyperSwarm</span>
         </div>
 
