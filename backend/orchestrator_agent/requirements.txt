@@ -1,0 +1,22 @@
+# Django
+Django==5.0.1
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Redis
+redis==5.0.1
+hiredis==2.3.2
+
+# LangChain - NEW!
+langchain==0.1.0
+langchain-anthropic==0.1.0
+langchain-core>=0.1.7,<0.2
+
+# Anthropic
+anthropic==0.18.0
+
+# HTTP client
+httpx==0.26.0
+
+# Utilities
+python-dotenv==1.0.0

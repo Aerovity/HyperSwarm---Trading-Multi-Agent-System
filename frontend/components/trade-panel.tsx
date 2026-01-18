@@ -23,18 +23,20 @@ export function TradePanel() {
       </div>
 
       {/* Content Area */}
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-3">
-          {tradingMode === "manual" ? (
-            <>
+      <div className="flex-1 overflow-hidden">
+        {tradingMode === "manual" ? (
+          <ScrollArea className="h-full">
+            <div className="p-3 space-y-3">
               <TradeExecution />
               <BridgeWidget />
-            </>
-          ) : (
+            </div>
+          </ScrollArea>
+        ) : (
+          <div className="h-full p-3">
             <AIChatInterface />
-          )}
-        </div>
-      </ScrollArea>
+          </div>
+        )}
+      </div>
     </GlassCard>
   )
 }
