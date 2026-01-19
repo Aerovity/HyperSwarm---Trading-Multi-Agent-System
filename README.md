@@ -1,4 +1,6 @@
 # HyperSwarm - AI-Powered Multi-Agent Trading System
+<img width="1600" height="1040" alt="image" src="https://github.com/user-attachments/assets/92bb2348-ec15-426a-9f47-02f6a85ce518" />
+
 
 > Autonomous DeFi trading on Hyperliquid with intelligent risk management and cross-chain bridging
 
